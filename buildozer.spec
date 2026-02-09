@@ -4,8 +4,12 @@ title = BTTest
 package.name = bttest
 package.domain = org.example
 
+source.dir = .
+
 # точка входа
 source.include_exts = py,png,jpg,kv,txt
+
+version = 0.1
 
 # главный питоновский файл
 requirements = python3,kivy,pyjnius
@@ -20,3 +24,4 @@ android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BL
 
 # иное
 log_level = 2
+
