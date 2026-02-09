@@ -19,9 +19,12 @@ android.api = 31
 android.minapi = 21
 android.ndk = 23b
 
+android.accept_sdk_license = True
+
 # разрешения (нужны для Bluetooth)
 android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
 
 # иное
 log_level = 2
+
 
