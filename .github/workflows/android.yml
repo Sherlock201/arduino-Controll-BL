@@ -24,13 +24,11 @@ jobs:
 
       - name: Build APK
         run: |
-          echo "Запускаем сборку через docker (авто-да для лицензий)..."
-          # Автоматически отвечаем "yes" на все запросы, запускаем образ, передаём аргументы entrypoint (android debug)
-          yes | docker run --rm \
+          docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
             kivy/buildozer:latest \
-            android debug
+            /bin/bash -c "yes | buildozer android debug"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
