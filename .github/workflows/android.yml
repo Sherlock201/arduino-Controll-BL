@@ -27,16 +27,16 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
+            --entrypoint /bin/bash \
             kivy/buildozer:latest \
-            /bin/bash -lc "\
-              set -euo pipefail; \
-              echo 'Accepting SDK licenses (may produce some output)...'; \
+            -c "set -euo pipefail; \
+              echo 'Accepting SDK licenses...'; \
               yes | sdkmanager --licenses || true; \
-              echo 'Installing specific SDK components (build-tools 36.1, platforms android-31) if missing...'; \
+              echo 'Installing build-tools;36.1.0 and platforms;android-31 if missing...'; \
               sdkmanager 'build-tools;36.1.0' 'platforms;android-31' || true; \
               echo 'Accepting licenses again...'; \
               yes | sdkmanager --licenses || true; \
-              echo 'Start buildozer'; \
+              echo 'Starting buildozer'; \
               buildozer -v android debug"
 
       - name: Upload APK
