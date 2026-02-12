@@ -29,5 +29,7 @@ android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BL
 # иное
 log_level = 2
 
+android.orientation = portrait
+fullscreen = 1
 
 
