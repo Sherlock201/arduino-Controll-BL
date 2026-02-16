@@ -25,12 +25,14 @@ android.arch = arm64-v8a
 
 # разрешения (нужны для Bluetooth)
 android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
+android.allow_cleartext_traffic = True
 
 # иное
 log_level = 2
 
 android.orientation = portrait
 fullscreen = 1
+
 
 
 
