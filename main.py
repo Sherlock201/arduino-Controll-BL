@@ -13,6 +13,11 @@ import os
 # Flask
 from flask import Flask, send_from_directory, render_template_string
 
+try:
+    _  # если не определено — определим как identity
+except NameError:
+    _ = lambda s: s
+
 # pyjnius (Android)
 try:
     from jnius import autoclass, PythonJavaClass, java_method
@@ -64,7 +69,9 @@ if AndroidAvailable:
         
             # Она разрешает загрузку контента из любых источников внутри WebView
             settings.setMixedContentMode(0) # 0 = MIXED_CONTENT_ALWAYS_ALLOW
-        
+            settings.setAllowFileAccess(True)
+            settings.setAllowUniversalAccessFromFileURLs(True)
+
             wv.setWebViewClient(WebViewClient())
             wv.loadUrl(self.url)
             params = ViewGroupLayoutParams(ViewGroupLayoutParams.MATCH_PARENT, ViewGroupLayoutParams.MATCH_PARENT)
@@ -146,4 +153,5 @@ class TestApp(App):
 
 if __name__ == '__main__':
     TestApp().run()
+
 
