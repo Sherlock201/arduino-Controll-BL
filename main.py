@@ -135,7 +135,7 @@ class TestApp(App):
             return
 
         # Запускаем код, который добавит WebView в UI потоке Android
-        url = 'http://127.0.0.1:5000/'
+        url = 'http://localhost:5000/'
         PythonActivity.mActivity.runOnUiThread(_(url))
         self._update_label("WebView opened (local page).")
 
@@ -153,5 +153,6 @@ class TestApp(App):
 
 if __name__ == '__main__':
     TestApp().run()
+
 
 
