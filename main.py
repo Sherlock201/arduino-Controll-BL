@@ -39,7 +39,7 @@ def static_files(filename):
 def run_flask():
     # bind to localhost: WebView can access http://127.0.0.1:5000
     # threaded=True чтобы не блокировать
-    app.run(host='127.0.0.1', port=5000, threaded=True, debug=False)
+    app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
 
 # --- WebView handling (Android) ---
 webview_ref = {'view': None}  # хранить ссылку на webview, чтобы можно было удалить
@@ -58,10 +58,13 @@ if AndroidAvailable:
         @java_method('()V')
         def run(self):
             activity = PythonActivity.mActivity
-            # Создаём WebView
             wv = WebView(activity)
-            wv.getSettings().setJavaScriptEnabled(True)
-            # Оставим вызовы в WebView внутри приложения
+            settings = wv.getSettings() # Получаем настройки
+            settings.setJavaScriptEnabled(True)
+        
+            # Она разрешает загрузку контента из любых источников внутри WebView
+            settings.setMixedContentMode(0) # 0 = MIXED_CONTENT_ALWAYS_ALLOW
+        
             wv.setWebViewClient(WebViewClient())
             wv.loadUrl(self.url)
             params = ViewGroupLayoutParams(ViewGroupLayoutParams.MATCH_PARENT, ViewGroupLayoutParams.MATCH_PARENT)
@@ -126,7 +129,7 @@ class TestApp(App):
 
         # Запускаем код, который добавит WebView в UI потоке Android
         url = 'http://127.0.0.1:5000/'
-        PythonActivity.mActivity.runOnUiThread(_AddWebViewRunnable(url))
+        PythonActivity.mActivity.runOnUiThread(_(url))
         self._update_label("WebView opened (local page).")
 
     def close_webview(self):
@@ -143,3 +146,4 @@ class TestApp(App):
 
 if __name__ == '__main__':
     TestApp().run()
+
