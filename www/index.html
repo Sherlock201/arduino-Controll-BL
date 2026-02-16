@@ -1,0 +1,1266 @@
+<!--<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Два перевёрнутых джойстика — колонная раскладка</title>
+  <style>
+    :root{--size:200px;--knob:50px}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
+
+    /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
+    .container{
+      position:absolute;left:15px;right:15px;top:15px;bottom:15px;
+      display:flex;gap:24px;align-items:stretch;justify-content:space-between;
+    }
+
+    /* Левая колонка: джойстики и вертикальные кнопки между ними */
+    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width:calc(var(--size) + 20px);}
+
+    .joystick-wrap{transform:rotate(90deg);display:inline-block}
+
+    .joystick{
+      width:var(--size);
+      height:var(--size);
+      position:relative;
+      touch-action: none;
+      -webkit-user-select:none;user-select:none;
+      flex:0 0 auto;
+    }
+
+    .base{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(20,20,30,0.08);background:linear-gradient(180deg,#ffffff 0%,#eef2f7 100%);box-shadow:0 6px 18px rgba(15,20,30,0.04) inset}
+
+    .knob{width:var(--knob);height:var(--knob);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(180deg,#ffffff,#e6edf8);box-shadow:0 6px 14px rgba(20,30,50,0.12);display:flex;align-items:center;justify-content:center;touch-action:none}
+
+    /* цвета */
+    .control-left .base{ border-color: rgba(59,130,246,0.25); }
+    .control-left .knob{ background: linear-gradient(180deg,#dbeafe,#bfdbfe); box-shadow: 0 6px 14px rgba(59,130,246,0.16);} /* синий */
+    .control-right .base{ border-color: rgba(249,115,22,0.22); }
+    .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
+
+    /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
+    .buttons-vertical{display:flex;flex-direction:column;gap:12px;align-items:center}
+    .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg)}
+
+    /* Правая колонка: повёрнутые надписи и значения */
+    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;padding-top:20px;justify-content: center;/*transform: rotate(90deg);*/}
+    .label{transform: rotate(90deg);font-weight:600;color:#0f1724}
+    .value{transform: rotate(90deg);width: 100px;font-size:14px;color:#0b1220;background:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,50,0.06)}
+    .control-left{display: flex;height: 100%;flex-direction: column;justify-content: space-between;}
+
+    /*@media (max-width:640px){:root{--size:160px;--knob:44px}.container{gap:12px}.btn{width:40px;height:40px}}*/
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="col-left">
+      <div class="control-left">
+        <div class="joystick-wrap">
+          <div class="joystick" id="joystick-top" data-rot="90">
+            <div class="base"></div>
+            <div class="knob" id="knob-top" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="buttons-vertical">
+          <button class="btn" id="btn1">A</button>
+          <button class="btn" id="btn2">B</button>
+          <button class="btn" id="btn3">C</button>
+        </div>
+
+        <div class="control-right">
+          <div class="joystick-wrap">
+            <div class="joystick" id="joystick-bottom" data-rot="90">
+              <div class="base"></div>
+              <div class="knob" id="knob-bottom" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="label">Левый</div>
+      <div class="value" id="value-top">Y: +0</div>
+
+      <div style="height:28px"></div>
+
+      <div class="label">Правый</div>
+      <div class="value" id="value-bottom">Y: +0</div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const joysticks = [
+        { container: document.getElementById('joystick-top'), knob: document.getElementById('knob-top'), valueEl: document.getElementById('value-top') },
+        { container: document.getElementById('joystick-bottom'), knob: document.getElementById('knob-bottom'), valueEl: document.getElementById('value-bottom') }
+      ];
+
+      joysticks.forEach(setupJoystick);
+
+      function setupJoystick({container, knob, valueEl}){
+        const size = () => parseFloat(getComputedStyle(container).width);
+        const knobSize = () => parseFloat(getComputedStyle(knob).width);
+
+        function getParams(){
+          const s = size();
+          return { size: s, knobSize: knobSize(), radius: s/2, knobRadius: knobSize()/2, maxOffset: s/2 - knobSize()/2 };
+        }
+
+        const rotated = container.dataset.rot === '90';
+        let active = false;
+
+        function setKnobOffset(localDy, withTransition=false){
+          const {maxOffset} = getParams();
+          const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
+          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+          knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
+          const normalized = Math.round((-constrained / maxOffset) * 100);
+          const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
+          valueEl.textContent = `Y: ${shown}`;
+          knob.setAttribute('aria-valuenow', normalized);
+        }
+
+        function resetKnob(){ setKnobOffset(0, true); }
+
+        function onPointerDown(e){ if(e.pointerType === 'mouse' && e.button !== 0) return; active = true; try{ knob.setPointerCapture(e.pointerId); }catch(_){ } knob.style.transition = 'none'; handlePointerMove(e); }
+
+        function handlePointerMove(e){
+          if(!active) return; e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const centerY = rect.top + rect.height/2;
+          const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
+          const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+
+          let localDy;
+          if(rotated){
+            const dx = clientX - centerX;
+            localDy = -dx; // повёрнутое управление: движение по X управляет локальной Y
+          } else {
+            localDy = clientY - centerY;
+          }
+
+          setKnobOffset(localDy, false);
+        }
+
+        function onPointerUp(e){ if(!active) return; active = false; try{ knob.releasePointerCapture && knob.releasePointerCapture(e.pointerId); } catch(_){ } resetKnob(); }
+
+        function onKey(e){
+          const step = 8;
+          const style = getComputedStyle(knob).transform;
+          let cur = 0;
+          try{ const dm = new DOMMatrixReadOnly(style); cur = dm.m42 || 0; }catch(_){ cur = 0; }
+          if(e.key === 'ArrowUp'){ setKnobOffset(cur - step, false); e.preventDefault(); }
+          else if(e.key === 'ArrowDown'){ setKnobOffset(cur + step, false); e.preventDefault(); }
+          else if(e.key === 'Home'){ resetKnob(); }
+        }
+
+        knob.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('pointermove', handlePointerMove, {passive:false});
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+
+        knob.addEventListener('touchstart', function(e){ active=true; knob.style.transition='none'; handlePointerMove(e); }, {passive:false});
+        document.addEventListener('touchmove', handlePointerMove, {passive:false});
+        document.addEventListener('touchend', onPointerUp);
+        document.addEventListener('touchcancel', onPointerUp);
+
+        knob.addEventListener('keydown', onKey);
+
+        resetKnob();
+        window.addEventListener('resize', ()=>{ resetKnob(); });
+      }
+
+      document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
+      document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
+      document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
+
+    })();
+  </script>
+</body>
+</html>
+-->
+
+
+<!--
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Два перевёрнутых джойстика — колонная раскладка</title>
+  <style>
+    :root{--size:200px;--knob:50px}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
+
+    /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
+    .container{
+      position:absolute;left:15px;right:15px;top:15px;bottom:15px;
+      display:flex;gap:24px;align-items:stretch;justify-content:space-between;
+    }
+
+    /* Левая колонка: джойстики и вертикальные кнопки между ними */
+    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width:calc(var(--size) + 20px);}
+
+    .joystick-wrap{transform:rotate(90deg);display:inline-block}
+
+    .joystick{
+      width:var(--size);
+      height:var(--size);
+      position:relative;
+      touch-action: none;
+      -webkit-user-select:none;user-select:none;
+      flex:0 0 auto;
+    }
+
+    .base{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(20,20,30,0.08);background:linear-gradient(180deg,#ffffff 0%,#eef2f7 100%);box-shadow:0 6px 18px rgba(15,20,30,0.04) inset}
+
+    .knob{width:var(--knob);height:var(--knob);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(180deg,#ffffff,#e6edf8);box-shadow:0 6px 14px rgba(20,30,50,0.12);display:flex;align-items:center;justify-content:center;touch-action:none}
+
+    /* цвета */
+    .control-left .base{ border-color: rgba(59,130,246,0.25); }
+    .control-left .knob{ background: linear-gradient(180deg,#dbeafe,#bfdbfe); box-shadow: 0 6px 14px rgba(59,130,246,0.16);} /* синий */
+    .control-right .base{ border-color: rgba(249,115,22,0.22); }
+    .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
+
+    /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
+    .buttons-vertical{display:flex;flex-direction:column;gap:12px;align-items:center}
+    .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg)}
+
+    /* Правая колонка: повёрнутые надписи и значения */
+    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;padding-top:20px;justify-content: center;/*transform: rotate(90deg);*/}
+    .label{transform: rotate(90deg);font-weight:600;color:#0f1724}
+    .value{transform: rotate(90deg);width: 100px;font-size:14px;color:#0b1220;background:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,50,0.06)}
+    .control-left{display: flex;height: 100%;flex-direction: column;justify-content: space-between;}
+
+    /*@media (max-width:640px){:root{--size:160px;--knob:44px}.container{gap:12px}.btn{width:40px;height:40px}}*/
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="col-left">
+      <div class="control-left">
+        <div class="joystick-wrap">
+          <div class="joystick" id="joystick-top" data-rot="90">
+            <div class="base"></div>
+            <div class="knob" id="knob-top" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="buttons-vertical">
+          <button class="btn" id="btn1">A</button>
+          <button class="btn" id="btn2">B</button>
+          <button class="btn" id="btn3">C</button>
+        </div>
+
+        <div class="control-right">
+          <div class="joystick-wrap">
+            <div class="joystick" id="joystick-bottom" data-rot="90">
+              <div class="base"></div>
+              <div class="knob" id="knob-bottom" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="label">Левый</div>
+      <div class="value" id="value-top">Y: +0</div>
+
+      <div style="height:28px"></div>
+
+      <div class="label">Правый</div>
+      <div class="value" id="value-bottom">Y: +0</div>
+    </div>
+  </div>
+
+
+  <script>
+    (function(){
+      const joysticks = [
+        { container: document.getElementById('joystick-top'), knob: document.getElementById('knob-top'), valueEl: document.getElementById('value-top') },
+        { container: document.getElementById('joystick-bottom'), knob: document.getElementById('knob-bottom'), valueEl: document.getElementById('value-bottom') }
+      ];
+
+      joysticks.forEach(setupJoystick);
+
+      function setupJoystick({container, knob, valueEl}){
+        const size = () => parseFloat(getComputedStyle(container).width);
+        const knobSize = () => parseFloat(getComputedStyle(knob).width);
+
+        function getParams(){
+          const s = size();
+          return { size: s, knobSize: knobSize(), radius: s/2, knobRadius: knobSize()/2, maxOffset: s/2 - knobSize()/2 };
+        }
+
+        const rotated = container.dataset.rot === '90';
+        let active = false;
+        let pointerId = null; // track which pointer controls this joystick (for multi-touch)
+        let touchId = null; // for touch fallback when pointer events are not used
+
+        function setKnobOffset(localDy, withTransition=false){
+          const {maxOffset} = getParams();
+          const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
+          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+          knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
+          const normalized = Math.round((-constrained / maxOffset) * 100);
+          const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
+          valueEl.textContent = `Y: ${shown}`;
+          knob.setAttribute('aria-valuenow', normalized);
+        }
+
+        function resetKnob(){ setKnobOffset(0, true); }
+
+        function onPointerDown(e){
+          if(e.pointerType === 'mouse' && e.button !== 0) return;
+          // If another pointer already controls this joystick, ignore
+          if(pointerId !== null) return;
+          active = true;
+          pointerId = e.pointerId;
+          try{ knob.setPointerCapture(e.pointerId); }catch(_){ }
+          knob.style.transition = 'none';
+          handlePointerMove(e);
+        }
+
+        function handlePointerMove(e){
+          // Only respond to moves from the pointer that started on this knob
+          if(!active) return;
+          if(e.pointerId !== undefined && e.pointerId !== pointerId) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const centerY = rect.top + rect.height/2;
+          const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
+          const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+
+          let localDy;
+          if(rotated){
+            const dx = clientX - centerX;
+            localDy = -dx; // повёрнутое управление: движение по X управляет локальной Y
+          } else {
+            localDy = clientY - centerY;
+          }
+
+          setKnobOffset(localDy, false);
+        }
+
+        function onPointerUp(e){
+          // Only release if this pointer was controlling this joystick
+          if(pointerId === null) return;
+          if(e.pointerId !== pointerId) return;
+          active = false;
+          pointerId = null;
+          try{ knob.releasePointerCapture && knob.releasePointerCapture(e.pointerId); } catch(_){ }
+          resetKnob();
+        }
+
+        // Touch fallback that also tracks touch identifier so multiple touches won't conflict
+        function onTouchStart(e){
+          if(touchId !== null) return; // already tracking a touch
+          const t = e.changedTouches[0];
+          if(!t) return;
+          touchId = t.identifier;
+          active = true;
+          knob.style.transition = 'none';
+          handleTouchMove(e);
+        }
+
+        function handleTouchMove(e){
+          if(!active || touchId === null) return;
+          // find the touch with our id
+          let t = null;
+          for(let i=0;i<e.touches.length;i++){ if(e.touches[i].identifier === touchId){ t = e.touches[i]; break; } }
+          if(!t) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const clientX = t.clientX;
+          const clientY = t.clientY;
+          let localDy;
+          if(rotated){ localDy = -(clientX - (rect.left + rect.width/2)); }
+          else { localDy = clientY - (rect.top + rect.height/2); }
+          setKnobOffset(localDy, false);
+        }
+
+        function onTouchEnd(e){
+          if(touchId === null) return;
+          // if our touch ended, stop tracking
+          for(let i=0;i<e.changedTouches.length;i++){
+            if(e.changedTouches[i].identifier === touchId){
+              active = false;
+              touchId = null;
+              resetKnob();
+              break;
+            }
+          }
+        }
+
+        function onKey(e){
+          const step = 8;
+          const style = getComputedStyle(knob).transform;
+          let cur = 0;
+          try{ const dm = new DOMMatrixReadOnly(style); cur = dm.m42 || 0; }catch(_){ cur = 0; }
+          if(e.key === 'ArrowUp'){ setKnobOffset(cur - step, false); e.preventDefault(); }
+          else if(e.key === 'ArrowDown'){ setKnobOffset(cur + step, false); e.preventDefault(); }
+          else if(e.key === 'Home'){ resetKnob(); }
+        }
+
+        // Attach pointer listeners specific to this joystick
+        knob.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('pointermove', handlePointerMove, {passive:false});
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+
+        // Touch listeners
+        knob.addEventListener('touchstart', onTouchStart, {passive:false});
+        document.addEventListener('touchmove', handleTouchMove, {passive:false});
+        document.addEventListener('touchend', onTouchEnd);
+        document.addEventListener('touchcancel', onTouchEnd);
+
+        knob.addEventListener('keydown', onKey);
+
+        resetKnob();
+        window.addEventListener('resize', ()=>{ resetKnob(); });
+      }
+
+      document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
+      document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
+      document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
+
+    })();
+  </script>
+</body>
+</html>
+-->
+
+<!-- не очень код
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Два перевёрнутых джойстика — колонная раскладка</title>
+  <style>
+    :root{--size:200px;--knob:50px}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
+
+    /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
+    .container{
+      position:absolute;left:15px;right:15px;top:15px;bottom:15px;
+      display:flex;gap:24px;align-items:stretch;justify-content:space-between;
+    }
+
+    /* Левая колонка: джойстики и вертикальные кнопки между ними */
+    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width:calc(var(--size) + 20px);}
+
+    .joystick-wrap{transform:rotate(90deg);display:inline-block}
+
+    .joystick{
+      width:var(--size);
+      height:var(--size);
+      position:relative;
+      touch-action: none;
+      -webkit-user-select:none;user-select:none;
+      flex:0 0 auto;
+    }
+
+    .base{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(20,20,30,0.08);background:linear-gradient(180deg,#ffffff 0%,#eef2f7 100%);box-shadow:0 6px 18px rgba(15,20,30,0.04) inset}
+
+    .knob{width:var(--knob);height:var(--knob);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(180deg,#ffffff,#e6edf8);box-shadow:0 6px 14px rgba(20,30,50,0.12);display:flex;align-items:center;justify-content:center;touch-action:none}
+
+    /* цвета */
+    .control-left .base{ border-color: rgba(59,130,246,0.25); }
+    .control-left .knob{ background: linear-gradient(180deg,#dbeafe,#bfdbfe); box-shadow: 0 6px 14px rgba(59,130,246,0.16);} /* синий */
+    .control-right .base{ border-color: rgba(249,115,22,0.22); }
+    .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
+
+    /* стрелки внутри окружности */
+    .axis-arrows{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);width:64%;height:64%;pointer-events:none;opacity:0.7}
+    .control-left .axis-arrows svg path{fill:rgba(59,130,246,0.95)}
+    .control-right .axis-arrows svg path{fill:rgba(249,115,22,0.95)}
+
+    /* активное состояние — подсветка */
+    .joystick.active .base{border-color:rgba(59,130,246,0.45);box-shadow:0 6px 22px rgba(15,20,30,0.06) inset, 0 0 18px rgba(59,130,246,0.06)}
+    .control-right .joystick.active .base{border-color:rgba(249,115,22,0.45);box-shadow:0 6px 22px rgba(15,20,30,0.06) inset, 0 0 18px rgba(249,115,22,0.06)}
+    .joystick.active .knob{box-shadow:0 10px 26px rgba(0,0,0,0.12),0 0 12px rgba(59,130,246,0.12)}
+    .control-right .joystick.active .knob{box-shadow:0 10px 26px rgba(0,0,0,0.12),0 0 12px rgba(249,115,22,0.12)}
+
+    /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
+    .buttons-vertical{display:flex;flex-direction:column;gap:12px;align-items:center}
+    .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg)}
+
+    /* Правая колонка: повёрнутые надписи и значения */
+    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;padding-top:20px;justify-content: center;}
+    .label{transform: rotate(90deg);font-weight:600;color:#0f1724}
+    .value{transform: rotate(90deg);width: 100px;font-size:14px;color:#0b1220;background:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,50,0.06)}
+    .control-left{display: flex;height: 100%;flex-direction: column;justify-content: space-between;}
+
+    /*@media (max-width:640px){:root{--size:160px;--knob:44px}.container{gap:12px}.btn{width:40px;height:40px}}*/
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="col-left">
+      <div class="control-left">
+        <div class="joystick-wrap control-left">
+          <div class="joystick" id="joystick-top" data-rot="90">
+            <div class="base"></div>
+            <div class="axis-arrows">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+
+                <path d="M50 10 L58 26 H42 Z" />
+
+                <path d="M50 90 L42 74 H58 Z" />
+              </svg>
+            </div>
+            <div class="knob" id="knob-top" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="buttons-vertical">
+          <button class="btn" id="btn1">A</button>
+          <button class="btn" id="btn2">B</button>
+          <button class="btn" id="btn3">C</button>
+        </div>
+
+        <div class="control-right">
+          <div class="joystick-wrap control-right">
+            <div class="joystick" id="joystick-bottom" data-rot="90">
+              <div class="base"></div>
+              <div class="axis-arrows">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M50 10 L58 26 H42 Z" />
+                  <path d="M50 90 L42 74 H58 Z" />
+                </svg>
+              </div>
+              <div class="knob" id="knob-bottom" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="label">Левый</div>
+      <div class="value" id="value-top">Y: +0</div>
+
+      <div style="height:28px"></div>
+
+      <div class="label">Правый</div>
+      <div class="value" id="value-bottom">Y: +0</div>
+    </div>
+  </div>
+
+  <div class="hint">Джойстики размещены один под другим; кнопки между ними и повернуты. Отступ сверху и снизу 15px.</div>
+
+  <script>
+    (function(){
+      const joysticks = [
+        { container: document.getElementById('joystick-top'), knob: document.getElementById('knob-top'), valueEl: document.getElementById('value-top') },
+        { container: document.getElementById('joystick-bottom'), knob: document.getElementById('knob-bottom'), valueEl: document.getElementById('value-bottom') }
+      ];
+
+      joysticks.forEach(setupJoystick);
+
+      function setupJoystick({container, knob, valueEl}){
+        const size = () => parseFloat(getComputedStyle(container).width);
+        const knobSize = () => parseFloat(getComputedStyle(knob).width);
+
+        function getParams(){
+          const s = size();
+          return { size: s, knobSize: knobSize(), radius: s/2, knobRadius: knobSize()/2, maxOffset: s/2 - knobSize()/2 };
+        }
+
+        const rotated = container.dataset.rot === '90';
+        let active = false;
+        let pointerId = null; // track which pointer controls this joystick (for multi-touch)
+        let touchId = null; // for touch fallback when pointer events are not used
+
+        function setKnobOffset(localDy, withTransition=false){
+          const {maxOffset} = getParams();
+          const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
+          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+          knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
+          const normalized = Math.round((-constrained / maxOffset) * 100);
+          const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
+          valueEl.textContent = `Y: ${shown}`;
+          knob.setAttribute('aria-valuenow', normalized);
+        }
+
+        function resetKnob(){ setKnobOffset(0, true); container.classList.remove('active'); }
+
+        function onPointerDown(e){
+          if(e.pointerType === 'mouse' && e.button !== 0) return;
+          // If another pointer already controls this joystick, ignore
+          if(pointerId !== null) return;
+          active = true;
+          pointerId = e.pointerId;
+          container.classList.add('active');
+          try{ knob.setPointerCapture(e.pointerId); }catch(_){ }
+          knob.style.transition = 'none';
+          handlePointerMove(e);
+        }
+
+        function handlePointerMove(e){
+          // Only respond to moves from the pointer that started on this knob
+          if(!active) return;
+          if(e.pointerId !== undefined && e.pointerId !== pointerId) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const centerY = rect.top + rect.height/2;
+          const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
+          const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+
+          let localDy;
+          if(rotated){
+            const dx = clientX - centerX;
+            localDy = -dx; // повёрнутое управление: движение по X управляет локальной Y
+          } else {
+            localDy = clientY - centerY;
+          }
+
+          setKnobOffset(localDy, false);
+        }
+
+        function onPointerUp(e){
+          // Only release if this pointer was controlling this joystick
+          if(pointerId === null) return;
+          if(e.pointerId !== pointerId) return;
+          active = false;
+          pointerId = null;
+          container.classList.remove('active');
+          try{ knob.releasePointerCapture && knob.releasePointerCapture(e.pointerId); } catch(_){ }
+          resetKnob();
+        }
+
+        // Touch fallback that also tracks touch identifier so multiple touches won't conflict
+        function onTouchStart(e){
+          if(touchId !== null) return; // already tracking a touch
+          const t = e.changedTouches[0];
+          if(!t) return;
+          touchId = t.identifier;
+          active = true;
+          container.classList.add('active');
+          knob.style.transition = 'none';
+          handleTouchMove(e);
+        }
+
+        function handleTouchMove(e){
+          if(!active || touchId === null) return;
+          // find the touch with our id
+          let t = null;
+          for(let i=0;i<e.touches.length;i++){ if(e.touches[i].identifier === touchId){ t = e.touches[i]; break; } }
+          if(!t) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const clientX = t.clientX;
+          const clientY = t.clientY;
+          let localDy;
+          if(rotated){ localDy = -(clientX - (rect.left + rect.width/2)); }
+          else { localDy = clientY - (rect.top + rect.height/2); }
+          setKnobOffset(localDy, false);
+        }
+
+        function onTouchEnd(e){
+          if(touchId === null) return;
+          // if our touch ended, stop tracking
+          for(let i=0;i<e.changedTouches.length;i++){
+            if(e.changedTouches[i].identifier === touchId){
+              active = false;
+              touchId = null;
+              container.classList.remove('active');
+              resetKnob();
+              break;
+            }
+          }
+        }
+
+        function onKey(e){
+          const step = 8;
+          const style = getComputedStyle(knob).transform;
+          let cur = 0;
+          try{ const dm = new DOMMatrixReadOnly(style); cur = dm.m42 || 0; }catch(_){ cur = 0; }
+          if(e.key === 'ArrowUp'){ setKnobOffset(cur - step, false); e.preventDefault(); }
+          else if(e.key === 'ArrowDown'){ setKnobOffset(cur + step, false); e.preventDefault(); }
+          else if(e.key === 'Home'){ resetKnob(); }
+        }
+
+        // Attach pointer listeners specific to this joystick
+        knob.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('pointermove', handlePointerMove, {passive:false});
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+
+        // Touch listeners
+        knob.addEventListener('touchstart', onTouchStart, {passive:false});
+        document.addEventListener('touchmove', handleTouchMove, {passive:false});
+        document.addEventListener('touchend', onTouchEnd);
+        document.addEventListener('touchcancel', onTouchEnd);
+
+        knob.addEventListener('keydown', onKey);
+
+        resetKnob();
+        window.addEventListener('resize', ()=>{ resetKnob(); });
+      }
+
+      document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
+      document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
+      document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
+
+    })();
+  </script>
+</body>
+</html>
+-->
+
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Football controller</title>
+  <style>
+    /*:root{--size:200px;--knob:50px}*/
+    :root{--size:250px;--knob:80px}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
+
+    /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
+    .container{
+      position:absolute;left:15px;right:15px;top:15px;bottom:15px;
+      display:flex;gap:24px;align-items:stretch;justify-content:space-between;
+    }
+
+    /* Левая колонка: джойстики и вертикальные кнопки между ними */
+    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width:calc(var(--size) + 20px);}
+
+    .joystick-wrap{transform:rotate(90deg);display:inline-block}
+
+    .joystick{
+      width:var(--size);
+      height:var(--size);
+      position:relative;
+      touch-action: none;
+      -webkit-user-select:none;user-select:none;
+      flex:0 0 auto;
+    }
+
+        /* подсветка при нажатии */
+    .joystick.active .base{
+      box-shadow:
+        0 0 0 6px rgba(0,0,0,0.04),
+        0 0 22px rgba(0,0,0,0.18),
+        0 6px 18px rgba(15,20,30,0.04) inset;
+      transition: box-shadow .15s ease;
+    }
+
+    /* индивидуальные цвета */
+    .control-left .joystick.active .base{
+      box-shadow:
+        0 0 0 6px rgba(162, 198, 255, 0.83),
+        0 0 24px rgba(142, 185, 255, 0.577),
+        0 6px 18px rgba(66, 87, 129, 0.04) inset;
+    }
+
+    .control-right .joystick.active .base{
+      box-shadow:
+        0 0 0 6px rgba(255, 187, 139, 0.859),
+        0 0 24px rgba(255, 172, 112, 0.644),
+        0 6px 18px rgba(94, 121, 173, 0.04) inset;
+    }
+
+    .arrow{
+    position:absolute;left:50%;transform:translateX(-50%);
+    width:0;height:0;opacity:.35;pointer-events:none;
+    }
+
+
+    .arrow.up{
+    top:10px;
+    border-left:10px solid transparent;
+    border-right:10px solid transparent;
+    border-bottom:16px solid #0f1724;
+    }
+
+
+    .arrow.down{
+    bottom:10px;
+    border-left:10px solid transparent;
+    border-right:10px solid transparent;
+    border-top:16px solid #0f1724;
+    }
+
+    .base{position:absolute;inset:0;border-radius:50%;border:6px solid rgba(20,20,30,0.08);/*background:linear-gradient(180deg,#ffffff 0%,#eef2f7 100%);*/box-shadow:0 6px 18px rgba(15,20,30,0.04) inset}
+
+    .knob{width:var(--knob);height:var(--knob);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(180deg,#ffffff,#e6edf8);box-shadow:0 6px 14px rgba(20,30,50,0.12);display:flex;align-items:center;justify-content:center;touch-action:none}
+
+    /* цвета */
+    .control-left .base{ border-color: rgba(59,130,246,0.54); }
+    .control-left .knob{ background: linear-gradient(180deg,#dbeafe,#bfdbfe); box-shadow: 0 6px 14px rgba(59,130,246,0.16);} /* синий */
+    .control-right .base{ border-color: rgba(249,115,22,0.54); }
+    .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
+
+    /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
+    .buttons-vertical{display:flex;flex-direction:row;gap:12px;align-items:center}
+    .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg); transition: all .13s ease;}
+    .btn-block{display: flex;flex-direction: column;gap: 15px;}
+    /* Правая колонка: повёрнутые надписи и значения */
+    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;/*padding-top:20px*/;justify-content: center;/*transform: rotate(90deg);*/margin-right:-30px;}
+    .label{transform: rotate(90deg);font-weight:600;color:#0f1724}
+    .value{transform: rotate(90deg);width: 100px;font-size:14px;color:#0b1220;background:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,50,0.06)}
+    .control-left{display: flex;height: 100%;flex-direction: column;justify-content: space-between;}
+    body.bg-a{
+      background: linear-gradient(180deg, #fdfefe 0%, #eff6ff 100%);
+    }
+    #btn6, #btn7{
+      width: 160px;
+    }
+
+    .bl_c {
+      /*transform: translate(-10%, -50%);*/
+      transform: translate(-20%, 50%);
+      top: 50%;
+      left: 50%;
+      position: absolute;
+      rotate: 90deg;
+    }
+
+    .bl_c .btn, .bl_d .btn, .bl_com .label{
+      transform:rotate(0deg);
+    }
+
+    .bl_d {
+      transform: translate(-20%, 180%);
+      /*transform: translate(-50%, -50%);*/
+      top: 50%;
+      left: 50%;
+      position: absolute;
+      rotate: 90deg;
+    }
+
+    .bl_com{
+      transform: translate(-10%, -60%);
+      /*transform: translate(-50%, -50%);*/
+      top: 50%;
+      left: 50%;
+      position: absolute;
+      rotate: 90deg;
+    }
+
+    span{
+      text-decoration: none;
+      font-weight: 400;
+    }
+
+    body.bg-b{
+      background: linear-gradient(180deg, #212127 0%, #2e2d33 100%);
+    }
+    body.bg-b .label{
+      color:#ffffff;
+    }
+
+    body.bg-b .value{
+        background:#fdfdfd;
+        box-shadow:0 6px 18px rgba(215, 228, 255, 0.264)
+      
+    }
+
+    body.bg-a .label{
+      color:#000000;
+    }
+
+    body.bg-a .value{
+      background:#ffffff;
+      box-shadow:0 6px 18px rgba(20,30,50,0.06)
+    }
+
+    body.bg-b .arrow{
+      opacity: 1;
+    }
+
+    body.bg-a .arrow{
+      opacity: .35;
+    }
+
+
+    body.bg-b .j-1{
+      border-bottom: 16px solid #c0d8ff !important;
+    }
+    body.bg-a .j-1{
+      border-bottom: 16px solid #17448d !important;
+    }
+
+    body.bg-b .j-3{
+      border-top: 16px solid #c0d8ff !important;
+    }
+    body.bg-a .j-3{
+      border-top: 16px solid #17448d !important;
+    }
+
+    body.bg-b .j-2{
+      border-bottom: 16px solid #ffc48c !important;
+    }
+    body.bg-a .j-2{
+        border-bottom: 16px solid #e67208 !important;
+    }
+
+    body.bg-b .j-4{
+      border-top: 16px solid #ffc48c !important;
+    }
+    body.bg-a .j-4{
+        border-top: 16px solid #e67208 !important;
+    }
+    body.bg-b .btn:active{
+      background:#f1f1f1;
+      transition: all .13s ease;
+      box-shadow:0 3px 20px rgba(241, 246, 255, 0.889);
+    }
+
+    body.bg-a .btn:active{
+      background:#f1f1f1;
+      transition: all .13s ease;
+      box-shadow:0 3px 20px rgba(92, 103, 123, 0.556);
+    }
+    html, body {
+      /* Блокирует pull-to-refresh и эффект "отскока" (bounce) */
+      overscroll-behavior-y: none;
+    }
+
+    /*@media (max-width:640px){:root{--size:160px;--knob:44px}.container{gap:12px}.btn{width:40px;height:40px}}*/
+  </style>
+</head>
+<body class="bg-a">
+  <div class="container">
+    <div class="col-left">
+      <div class="control-left">
+        <div class="joystick-wrap">
+          <div class="joystick" id="joystick-top" data-rot="90">
+            <div class="base"></div>
+            <div class="arrow up j-1" style="border-bottom: 16px solid #17448d;"></div>
+            <div class="arrow down j-3" style="border-top: 16px solid #17448d;"></div>
+            <div class="knob" id="knob-top" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="buttons-vertical">
+            <div class="btn-block">
+                <button class="btn" id="btn1">A</button>
+                <button class="btn" id="btn2">B</button>
+                <button class="btn" id="btn3">C</button>
+            </div>
+            <div class="btn-block">
+                <button class="btn" id="btn4">N</button>
+                <button class="btn" id="btn5">D</button>
+            </div>
+            <div class="btn-block bl_d">
+                <button class="btn" id="btn6">DISCONNECTED</button>
+            </div>
+            <div class="btn-block bl_c">
+                <button class="btn" id="btn7">CONNECTED</button>
+            </div>
+            <div class="btn-block bl_com">
+                <div class="label">Состояние: <span class="status">Отключено</span></div>
+            </div>
+            
+        </div>
+
+        <div class="control-right">
+          <div class="joystick-wrap">
+            <div class="joystick" id="joystick-bottom" data-rot="90">
+              <div class="base"></div>
+              <div class="arrow up j-2" style="border-bottom: 16px solid #e67208;"></div>
+              <div class="arrow down j-4" style="border-top: 16px solid #e67208;"></div>
+              <div class="knob" id="knob-bottom" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="label">Левый</div>
+      <div class="value" id="value-top">Y: +0</div>
+
+      <div style="height:28px"></div>
+
+      <div class="label">Правый</div>
+      <div class="value" id="value-bottom">Y: +0</div>
+    </div>
+  </div>
+
+
+  <script>
+    (async function(){
+      let device, server, txChar, rxChar;
+
+      // UUID сервис/характеристики — часто у HM-10: FFE0 / FFE1
+      const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+      const TX_CHAR_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb'; // писать сюда (назвал txChar)
+      // Некоторые модули используют другие UUID — если не найдёт, используйте acceptAllDevices:true
+
+      async function connect() {
+        try {
+          // Попробуйте фильтр по имени (HM, HMSoft) — если не работает, замените на acceptAllDevices:true
+          device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'HM' }], // или { name: 'HMSoft' } или уберите фильтр
+            optionalServices: [SERVICE_UUID]
+          });
+        
+          device.addEventListener('gattserverdisconnected', onDisconnected);
+          server = await device.gatt.connect();
+          const service = await server.getPrimaryService(SERVICE_UUID);
+          txChar = await service.getCharacteristic(TX_CHAR_UUID);
+        
+          // Если модуль поддерживает уведомления (иногда RX/TX перепутаны), подписываемся
+          try {
+            rxChar = txChar; // у HM-10 часто только одна характеристика и она уведомляет и принимает
+            await rxChar.startNotifications();
+            rxChar.addEventListener('characteristicvaluechanged', onRx);
+          } catch(e) {
+            console.log('Нет уведомлений или другая конфигурация', e);
+          }
+        
+          console.log('HM-10 connected');
+
+          document.querySelector(".status").textContent = "Подключено";
+
+        } catch (err) {
+          console.error('Connect failed', err);
+          throw err;
+          document.querySelector(".status").textContent = err.message || err;
+        }
+      }
+    
+      function onDisconnected() {
+        console.log('BLE disconnected');
+        // можно попытаться переподключиться
+      }
+    
+      function onRx(e) {
+        const value = new TextDecoder().decode(e.target.value);
+        console.log('RX:', value);
+        // сюда можно обновлять UI, если Arduino ответит чем-то
+      }
+    
+      async function sendLine(line) {
+        if(!txChar) throw new Error('Not connected');
+        if(!line.endsWith('\n')) line += '\n';
+        const data = new TextEncoder().encode(line);
+        // HM-10 может принимать ограниченные чанки (20 байт). Если длинные строки — разбивайте.
+        await txChar.writeValue(data);
+      }
+    
+      // expose to console for testing
+      window.bleController = { connect, sendLine };
+    
+      // пример: подключаемся при нажатии кнопки (вы сами решите, куда вызывать)
+      document.getElementById('btn1').addEventListener('click', async ()=>{
+        if(!txChar) await connect();
+        // отправим пример команды (левый джойстик)
+        const v = document.getElementById('value-top').textContent.replace('Y: ',''); // пример
+        // преобразуйте в желаемый формат: "LY:20\n"
+        await sendLine('LY:20\n');
+      });
+    
+    })();
+
+
+    // Используйте её для btn7:
+    document.getElementById('btn7').addEventListener('click', async function(e) {
+      try {
+        await window.bleController.connect();
+      } catch(err) {
+        console.error('Connection failed:', err);
+      }
+    });
+
+
+    document.addEventListener('touchmove', function(e) {
+      if (window.scrollY === 0 && e.touches[0].pageY > 0) {
+        // Логика блокировки, если нужно ювелирное управление
+      }
+    }, { passive: false });
+
+    const body = document.body;
+        document.getElementById('btn5').addEventListener('click', () => {
+        body.classList.remove('bg-b');
+        body.classList.add('bg-a');
+    });
+
+    document.getElementById('btn4').addEventListener('click', () => {
+        body.classList.remove('bg-a');
+        body.classList.add('bg-b');
+    });
+
+    (function(){
+      const joysticks = [
+        { container: document.getElementById('joystick-top'), knob: document.getElementById('knob-top'), valueEl: document.getElementById('value-top') },
+        { container: document.getElementById('joystick-bottom'), knob: document.getElementById('knob-bottom'), valueEl: document.getElementById('value-bottom') }
+      ];
+
+      joysticks.forEach(setupJoystick);
+
+      function setupJoystick({container, knob, valueEl}){
+        const size = () => parseFloat(getComputedStyle(container).width);
+        const knobSize = () => parseFloat(getComputedStyle(knob).width);
+
+        function getParams(){
+          const s = size();
+          return { size: s, knobSize: knobSize(), radius: s/2, knobRadius: knobSize()/2, maxOffset: s/2 - knobSize()/2 };
+        }
+
+        const rotated = container.dataset.rot === '90';
+        let active = false;
+        let pointerId = null; // track which pointer controls this joystick (for multi-touch)
+        let touchId = null; // for touch fallback when pointer events are not used
+
+        function setKnobOffset(localDy, withTransition=false){
+          const {maxOffset} = getParams();
+          const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
+          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+          knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
+          const normalized = Math.round((-constrained / maxOffset) * 100);
+          const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
+          valueEl.textContent = `Y: ${shown}`;
+          knob.setAttribute('aria-valuenow', normalized);
+        }
+
+        function resetKnob(){ setKnobOffset(0, true); }
+
+        function onPointerDown(e){
+          if(e.pointerType === 'mouse' && e.button !== 0) return;
+          // If another pointer already controls this joystick, ignore
+          if(pointerId !== null) return;
+          active = true;
+          pointerId = e.pointerId;
+
+          container.classList.add('active');
+
+          try{ knob.setPointerCapture(e.pointerId); }catch(_){ }
+          knob.style.transition = 'none';
+          handlePointerMove(e);
+        }
+
+        function handlePointerMove(e){
+          // Only respond to moves from the pointer that started on this knob
+          if(!active) return;
+          if(e.pointerId !== undefined && e.pointerId !== pointerId) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const centerY = rect.top + rect.height/2;
+          const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
+          const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
+
+          let localDy;
+          if(rotated){
+            const dx = clientX - centerX;
+            localDy = -dx; // повёрнутое управление: движение по X управляет локальной Y
+          } else {
+            localDy = clientY - centerY;
+          }
+
+          setKnobOffset(localDy, false);
+        }
+
+        function onPointerUp(e){
+          // Only release if this pointer was controlling this joystick
+          if(pointerId === null) return;
+          if(e.pointerId !== pointerId) return;
+          active = false;
+          pointerId = null;
+
+          container.classList.remove('active');
+
+          try{ knob.releasePointerCapture && knob.releasePointerCapture(e.pointerId); } catch(_){ }
+          resetKnob();
+        }
+
+        // Touch fallback that also tracks touch identifier so multiple touches won't conflict
+        function onTouchStart(e){
+          if(touchId !== null) return; // already tracking a touch
+          const t = e.changedTouches[0];
+          if(!t) return;
+          touchId = t.identifier;
+          active = true;
+
+          container.classList.add('active');
+
+          knob.style.transition = 'none';
+          handleTouchMove(e);
+        }
+
+        function handleTouchMove(e){
+          if(!active || touchId === null) return;
+          // find the touch with our id
+          let t = null;
+          for(let i=0;i<e.touches.length;i++){ if(e.touches[i].identifier === touchId){ t = e.touches[i]; break; } }
+          if(!t) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width/2;
+          const clientX = t.clientX;
+          const clientY = t.clientY;
+          let localDy;
+          if(rotated){ localDy = -(clientX - (rect.left + rect.width/2)); }
+          else { localDy = clientY - (rect.top + rect.height/2); }
+          setKnobOffset(localDy, false);
+        }
+
+        function onTouchEnd(e){
+          if(touchId === null) return;
+          // if our touch ended, stop tracking
+          for(let i=0;i<e.changedTouches.length;i++){
+            if(e.changedTouches[i].identifier === touchId){
+              active = false;
+              touchId = null;
+
+              container.classList.remove('active');
+
+              resetKnob();
+              break;
+            }
+          }
+        }
+
+        function onKey(e){
+          const step = 8;
+          const style = getComputedStyle(knob).transform;
+          let cur = 0;
+          try{ const dm = new DOMMatrixReadOnly(style); cur = dm.m42 || 0; }catch(_){ cur = 0; }
+          if(e.key === 'ArrowUp'){ setKnobOffset(cur - step, false); e.preventDefault(); }
+          else if(e.key === 'ArrowDown'){ setKnobOffset(cur + step, false); e.preventDefault(); }
+          else if(e.key === 'Home'){ resetKnob(); }
+        }
+
+        // Attach pointer listeners specific to this joystick
+        knob.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('pointermove', handlePointerMove, {passive:false});
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+
+        // Touch listeners
+        knob.addEventListener('touchstart', onTouchStart, {passive:false});
+        document.addEventListener('touchmove', handleTouchMove, {passive:false});
+        document.addEventListener('touchend', onTouchEnd);
+        document.addEventListener('touchcancel', onTouchEnd);
+
+        knob.addEventListener('keydown', onKey);
+
+        resetKnob();
+        window.addEventListener('resize', ()=>{ resetKnob(); });
+      }
+
+      document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
+      document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
+      document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
+
+    })();
+  </script>
+</body>
+</html>
