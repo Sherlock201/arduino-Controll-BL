@@ -12,7 +12,7 @@ source.include_exts = py,kv,html,css,js,png,jpg
 version = 0.1
 
 # главный питоновский файл
-requirements = python3,kivy,pyjnius,flask
+requirements = python3,kivy,pyjnius,flask==2.0.3,werkzeug==2.0.3
 
 # версии Android
 android.api = 31
@@ -31,6 +31,7 @@ log_level = 2
 
 android.orientation = portrait
 fullscreen = 1
+
 
 
 
