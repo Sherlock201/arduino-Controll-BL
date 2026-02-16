@@ -7,12 +7,12 @@ package.domain = org.example
 source.dir = .
 
 # точка входа
-source.include_exts = py,png,jpg,kv,txt
+source.include_exts = py,kv,html,css,js,png,jpg
 
 version = 0.1
 
 # главный питоновский файл
-requirements = python3,kivy,pyjnius
+requirements = python3,kivy,pyjnius,flask
 
 # версии Android
 android.api = 31
@@ -31,5 +31,6 @@ log_level = 2
 
 android.orientation = portrait
 fullscreen = 1
+
 
 
