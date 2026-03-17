@@ -166,8 +166,8 @@ class TestApp(App):
         url = 'http://127.0.0.1'
         
         # Сначала меняем ориентацию на альбомную
-        ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-        PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+        #ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+        #PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
         
         # Теперь запускаем WebView
         runnable = _AddWebViewRunnable(url)
