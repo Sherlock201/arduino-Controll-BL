@@ -134,7 +134,12 @@ class TestApp(App):
         return root
         
     def on_start(self):
-        # Запускаем Flask через секунду после того, как Kivy отрисует интерфейс
+        # Принудительно ставим портрет при запуске приложения
+        if AndroidAvailable:
+            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        
+        # Запускаем Flask через секунду
         Clock.schedule_once(lambda dt: self.start_flask(), 1)
         
     def start_flask(self):
