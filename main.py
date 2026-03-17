@@ -76,7 +76,9 @@ if AndroidAvailable:
             settings.setLoadWithOverviewMode(True)  # Умещает контент по ширине экрана
             settings.setSupportZoom(False)          # Отключает системный зум
             # -----------------------------------------
+            wv.setInitialScale(0)
 
+            
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
             try:
