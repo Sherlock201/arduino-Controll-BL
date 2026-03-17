@@ -66,8 +66,9 @@ if AndroidAvailable:
             wv = WebView(activity)
             settings = wv.getSettings() # Получаем настройки
             settings.setJavaScriptEnabled(True)
-            if android.os.Build.VERSION.SDK_INT >= 21:
-                settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
+
+            #!Запрос настройки
+            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
         
             # Она разрешает загрузку контента из любых источников внутри WebView
             settings.setMixedContentMode(0) # 0 = MIXED_CONTENT_ALWAYS_ALLOW
@@ -141,7 +142,7 @@ class TestApp(App):
             return
 
         # Правильный вызов: создаем объект Runnable и передаем его в UI поток
-        url = 'http://127.0.0.1' # лучше 127.0.0.1
+        url = 'http://127.0.0.1:5000' # лучше 127.0.0.1
         
         # Сначала меняем ориентацию на альбомную
         ActivityInfo = autoclass('android.content.pm.ActivityInfo')
