@@ -60,25 +60,38 @@ if AndroidAvailable:
         def __init__(self, url):
             super().__init__()
             self.url = url
+            
         @java_method('()V')
         def run(self):
             activity = PythonActivity.mActivity
             wv = WebView(activity)
             settings = wv.getSettings()
             settings.setJavaScriptEnabled(True)
-            settings.setDomStorageEnabled(True) # ОБЯЗАТЕЛЬНО для Flask/JS
-            
-            # Разрешаем всё подряд для локальных нужд
-            settings.setMixedContentMode(0) 
+            settings.setDomStorageEnabled(True)
             settings.setAllowFileAccess(True)
             settings.setAllowContentAccess(True)
-            settings.setAllowUniversalAccessFromFileURLs(True)
-            settings.setAllowFileAccessFromFileURLs(True)
-            settings.setSafeBrowsingEnabled(False)
+            settings.setMixedContentMode(0) 
+
+            # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
+            # Читаем содержимое index.html из папки www напрямую в Python
+            try:
+                # В buildozer.spec source.dir = . , значит www рядом с main.py
+                www_path = os.path.join(os.getcwd(), 'www', 'index.html')
+                if os.path.exists(www_path):
+                    with open(www_path, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                else:
+                    html_content = "<html><body><h1>index.html not found in /www</h1></body></html>"
+            except Exception as e:
+                html_content = f"<html><body><h1>Error reading file: {str(e)}</h1></body></html>"
+
+            # Вместо loadUrl используем загрузку данных.
+            # baseUrl 'http://localhost:5000/' позволит JS делать fetch/XHR к Flask,
+            # но сама страница откроется моментально и без проверки безопасности.
+            wv.loadDataWithBaseURL('http://localhost:5000/', html_content, 'text/html', 'UTF-8', None)
+            # ---------------------------------------------
 
             wv.setWebViewClient(WebViewClient())
-            wv.loadUrl(self.url)
-            
             params = ViewGroupLayoutParams(ViewGroupLayoutParams.MATCH_PARENT, ViewGroupLayoutParams.MATCH_PARENT)
             activity.addContentView(wv, params)
             webview_ref['view'] = wv
