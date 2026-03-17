@@ -74,6 +74,7 @@ if AndroidAvailable:
             settings.setAllowContentAccess(True)
             settings.setAllowUniversalAccessFromFileURLs(True)
             settings.setAllowFileAccessFromFileURLs(True)
+            settings.setSafeBrowsingEnabled(False)
 
             wv.setWebViewClient(WebViewClient())
             wv.loadUrl(self.url)
