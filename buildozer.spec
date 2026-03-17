@@ -30,7 +30,7 @@ android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BL
 # android.allow_cleartext_traffic = True
 # android.manifest_attributes = android:usesCleartextTraffic="true"
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
-android.manifest_application_attributes = android:usesCleartextTraffic="true"
+# android.manifest_application_attributes = android:usesCleartextTraffic="true"
 android.manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config"
 
 # иное
