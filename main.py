@@ -72,6 +72,11 @@ if AndroidAvailable:
             settings.setAllowContentAccess(True)
             settings.setMixedContentMode(0) 
 
+            settings.setUseWideViewPort(True)       # Разрешает использовать viewport из HTML
+            settings.setLoadWithOverviewMode(True)  # Умещает контент по ширине экрана
+            settings.setSupportZoom(False)          # Отключает системный зум
+            # -----------------------------------------
+
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
             try:
