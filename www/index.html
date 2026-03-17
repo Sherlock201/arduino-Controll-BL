@@ -11,7 +11,7 @@
     }
     :root {
       /* Джойстик всегда будет занимать 70% высоты экрана, но не больше 250px */
-      --size: min(70vh, 250px); 
+      --size: min(65vh, 230px);
       --knob: calc(var(--size) * 0.3);
     }
     html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
@@ -100,7 +100,7 @@
     .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
 
     /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
-    .buttons-vertical{display:flex;flex-direction:row;gap:12px;align-items:center}
+    .buttons-vertical{position: relative;display:flex;flex-direction:row;gap:12px;align-items:center}
     .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg); transition: all .13s ease;}
     .btn-block{display: flex;flex-direction: column;gap: 15px;}
     /* Правая колонка: повёрнутые надписи и значения */
@@ -129,21 +129,17 @@
     }
 
     .bl_d {
-      transform: translate(-20%, 180%);
-      /*transform: translate(-50%, -50%);*/
-      top: 50%;
-      left: 50%;
+      left: 45%;
       position: absolute;
       rotate: 90deg;
+      white-space: nowrap;
     }
 
     .bl_com{
-      transform: translate(-10%, -60%);
-      /*transform: translate(-50%, -50%);*/
-      top: 50%;
-      left: 50%;
+      left: 95%;
       position: absolute;
       rotate: 90deg;
+      white-space: nowrap;
     }
 
     span{
