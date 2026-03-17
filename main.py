@@ -100,7 +100,7 @@ class TestApp(App):
 
         self.flask_thread = None
         # Запускаем Flask один раз при старте приложения
-        self.start_flask()
+        #self.start_flask()
 
         root = BoxLayout(orientation='vertical', padding=8, spacing=8)
         self.label = Label(text="Status: Flask not started", size_hint=(1, 0.2))
@@ -114,7 +114,11 @@ class TestApp(App):
         root.add_widget(btn_open)
         root.add_widget(btn_close)
         return root
-
+        
+    def on_start(self):
+        # Запускаем сервер только когда графическая оболочка уже готова
+        self.start_flask()
+        
     def start_flask(self):
         if self.flask_thread and self.flask_thread.is_alive():
             return
@@ -134,15 +138,28 @@ class TestApp(App):
             self._update_label("Opened in external browser (desktop).")
             return
 
-        # Запускаем код, который добавит WebView в UI потоке Android
-        url = 'http://localhost:5000/'
-        PythonActivity.mActivity.runOnUiThread(_(url))
-        self._update_label("WebView opened (local page).")
+        # Правильный вызов: создаем объект Runnable и передаем его в UI поток
+        url = 'http://127.0.0.1' # лучше 127.0.0.1
+        
+        # Сначала меняем ориентацию на альбомную
+        ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+        PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+        
+        # Теперь запускаем WebView
+        runnable = _AddWebViewRunnable(url)
+        PythonActivity.mActivity.runOnUiThread(runnable)
+        self._update_label("WebView opened.")
 
     def close_webview(self):
         if not AndroidAvailable:
-            self._update_label("Nothing to close (desktop).")
+            self._update_label("Nothing to close.")
             return
+        
+        # Возвращаем вертикальный режим
+        ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+        PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+        
+        # Удаляем WebView
         PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
         self._update_label("WebView removed.")
 
