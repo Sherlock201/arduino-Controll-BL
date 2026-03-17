@@ -9,7 +9,11 @@
     *, *:before, *:after {
       box-sizing: border-box;
     }
-    :root{--size:250px;--knob:80px}
+    :root {
+      /* Джойстик всегда будет занимать 70% высоты экрана, но не больше 250px */
+      --size: min(70vh, 250px); 
+      --knob: calc(var(--size) * 0.3);
+    }
     html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
     html, body {
       height: 100%;
@@ -22,8 +26,8 @@
     
     /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
     .container{
-      position:absolute;/*left:15px;right:15px;top:15px;bottom:15px;*/inset: 15px;
-      display:flex;gap:24px;align-items:stretch;justify-content:space-between; overflow: hidden;
+      position:absolute;/*left:15px;right:15px;top:15px;bottom:15px;*/inset: 2vh;
+      display:flex;gap:3vw;align-items:stretch;justify-content:space-between; overflow: hidden;
     }
 
     /* Левая колонка: джойстики и вертикальные кнопки между ними */
