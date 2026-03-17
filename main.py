@@ -66,6 +66,8 @@ if AndroidAvailable:
             wv = WebView(activity)
             settings = wv.getSettings() # Получаем настройки
             settings.setJavaScriptEnabled(True)
+            if android.os.Build.VERSION.SDK_INT >= 21:
+                settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
         
             # Она разрешает загрузку контента из любых источников внутри WebView
             settings.setMixedContentMode(0) # 0 = MIXED_CONTENT_ALWAYS_ALLOW
