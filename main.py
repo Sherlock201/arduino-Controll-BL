@@ -77,7 +77,8 @@ if AndroidAvailable:
             settings.setSupportZoom(False)          # Отключает системный зум
             # -----------------------------------------
             wv.setInitialScale(0)
-
+            wv.setVerticalScrollBarEnabled(False)
+            wv.setHorizontalScrollBarEnabled(False)
             
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
