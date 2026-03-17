@@ -6,8 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Два перевёрнутых джойстика — колонная раскладка</title>
   <style>
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
     :root{--size:200px;--knob:50px}
-    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb;overflow: hidden;}
 
     /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
     .container{
