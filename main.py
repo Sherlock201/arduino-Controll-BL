@@ -64,19 +64,20 @@ if AndroidAvailable:
         def run(self):
             activity = PythonActivity.mActivity
             wv = WebView(activity)
-            settings = wv.getSettings() # Получаем настройки
+            settings = wv.getSettings()
             settings.setJavaScriptEnabled(True)
-
-            #!Запрос настройки
-            settings.setMixedContentMode(0) # MIXED_CONTENT_ALWAYS_ALLOW
-        
-            # Она разрешает загрузку контента из любых источников внутри WebView
-            settings.setMixedContentMode(0) # 0 = MIXED_CONTENT_ALWAYS_ALLOW
+            settings.setDomStorageEnabled(True) # ОБЯЗАТЕЛЬНО для Flask/JS
+            
+            # Разрешаем всё подряд для локальных нужд
+            settings.setMixedContentMode(0) 
             settings.setAllowFileAccess(True)
+            settings.setAllowContentAccess(True)
             settings.setAllowUniversalAccessFromFileURLs(True)
+            settings.setAllowFileAccessFromFileURLs(True)
 
             wv.setWebViewClient(WebViewClient())
             wv.loadUrl(self.url)
+            
             params = ViewGroupLayoutParams(ViewGroupLayoutParams.MATCH_PARENT, ViewGroupLayoutParams.MATCH_PARENT)
             activity.addContentView(wv, params)
             webview_ref['view'] = wv
@@ -142,7 +143,8 @@ class TestApp(App):
             return
 
         # Правильный вызов: создаем объект Runnable и передаем его в UI поток
-        url = 'http://127.0.0.1:5000' # лучше 127.0.0.1
+        #url = 'http://127.0.0.1:5000' # лучше 127.0.0.1
+        url = 'http://localhost:5000/'
         
         # Сначала меняем ориентацию на альбомную
         ActivityInfo = autoclass('android.content.pm.ActivityInfo')
