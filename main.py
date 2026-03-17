@@ -118,8 +118,8 @@ class TestApp(App):
         return root
         
     def on_start(self):
-        # Запускаем сервер только когда графическая оболочка уже готова
-        self.start_flask()
+        # Запускаем Flask через секунду после того, как Kivy отрисует интерфейс
+        Clock.schedule_once(lambda dt: self.start_flask(), 1)
         
     def start_flask(self):
         if self.flask_thread and self.flask_thread.is_alive():
