@@ -161,10 +161,6 @@ class TestApp(App):
                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             decorView.setSystemUiVisibility(uiOptions)
 
-    def on_resume(self):
-        # Чтобы при разворачивании не вылетала полоска сверху
-        self.set_fullscreen()
-
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
             t = threading.Thread(target=run_flask, daemon=True)
