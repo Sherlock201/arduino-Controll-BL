@@ -66,6 +66,7 @@ if AndroidAvailable:
         def run(self):
             activity = PythonActivity.mActivity
             wv = WebView(activity)
+            View = autoclass('android.view.View')
             settings = wv.getSettings()
             settings.setJavaScriptEnabled(True)
             settings.setDomStorageEnabled(True)
@@ -80,6 +81,8 @@ if AndroidAvailable:
             wv.setInitialScale(0)
             wv.setVerticalScrollBarEnabled(False)
             wv.setHorizontalScrollBarEnabled(False)
+
+            wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
@@ -197,10 +200,12 @@ class TestApp(App):
             PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
 
     def on_resume(self):
-        # Это вернет Fullscreen и Landscape, когда ты развернешь приложение
         if AndroidAvailable:
-            self.set_fullscreen()
-            # На всякий случай подтверждаем ориентацию
+            # Даем системе 0.2 сек, чтобы она вывела свои панели, 
+            # и тут же их "схлопываем" обратно
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.2)
+            
+            # Подтверждаем портрет (если ты решила остаться в нем)
             ActivityInfo = autoclass('android.content.pm.ActivityInfo')
             PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
