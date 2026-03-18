@@ -132,7 +132,7 @@ class TestApp(App):
         if AndroidAvailable:
             # 1. Сразу фиксируем горизонт (дизайнерский режим)
             ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
             
             # 2. Прячем системные кнопки и статус-бар (Fullscreen)
             self.set_fullscreen()
@@ -201,8 +201,8 @@ class TestApp(App):
         if AndroidAvailable:
             self.set_fullscreen()
             # На всякий случай подтверждаем ориентацию
-            #ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            #PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
 if __name__ == '__main__':
     TestApp().run()
