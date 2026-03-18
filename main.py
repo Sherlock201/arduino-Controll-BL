@@ -201,8 +201,8 @@ class TestApp(App):
         if AndroidAvailable:
             self.set_fullscreen()
             # На всякий случай подтверждаем ориентацию
-            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+            #ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+            #PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
 if __name__ == '__main__':
     TestApp().run()
