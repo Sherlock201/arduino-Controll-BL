@@ -11,7 +11,7 @@
     }
     :root {
       /* Джойстик всегда будет занимать 70% высоты экрана, но не больше 250px */
-      --size: min(65vh, 230px);
+      --size: min(30vh, 250px);
       --knob: calc(var(--size) * 0.3);
     }
     html,body{height:100%;margin:0;font-family:Inter, Roboto, Arial, sans-serif;background:#f5f7fb}
@@ -30,8 +30,8 @@
       display:flex;gap:3vw;align-items:stretch;justify-content:space-between; overflow: hidden;
     }
 
-    /* Левая колонка: джойстики и вертикальные кнопки между ними */
-    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width:calc(var(--size) + 20px);}
+    /* Левая колонка: джойстики и вертикальные кнопки между ними width:calc(var(--size) + 20px); */
+    .col-left{display:flex;flex-direction:column;align-items:center;gap:18px;width: 100%;align-items: flex-start;justify-content: space-between;}
 
     .joystick-wrap{transform:rotate(90deg);display:inline-block}
 
@@ -100,14 +100,14 @@
     .control-right .knob{ background: linear-gradient(180deg,#ffe8d6,#ffd2a8); box-shadow: 0 6px 14px rgba(249,115,22,0.12);} /* оранжевый */
 
     /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
-    .buttons-vertical{position: relative;display:flex;flex-direction:row;gap:12px;align-items:center}
-    .btn{width:48px;height:48px;border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg); transition: all .13s ease;}
+    .buttons-vertical{position: relative;display:flex;flex-direction:row;gap:12px;align-items:center;height: 100%;width: 100%;}
+    .btn{width:min(7vh, 48px);height:min(7vh, 48px); /*width:48px;height:48px;*/border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600;transform:rotate(90deg); transition: all .13s ease;}
     .btn-block{display: flex;flex-direction: column;gap: 15px;}
     /* Правая колонка: повёрнутые надписи и значения */
-    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;/*padding-top:20px*/;justify-content: center;/*transform: rotate(90deg);*/margin-right:-30px;}
+    .col-right{display:flex;flex-direction:column;align-items:center;gap:100px;/*padding-top:20px*/;justify-content: center;/*transform: rotate(90deg);*/margin-right:-30px;margin-left: -55px}
     .label{transform: rotate(90deg);font-weight:600;color:#0f1724}
     .value{transform: rotate(90deg);width: 100px;font-size:14px;color:#0b1220;background:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(20,30,50,0.06)}
-    .control-left{display: flex;height: 100%;flex-direction: column;justify-content: space-between;}
+    .control-left,.control-right{display: flex;flex-direction: column;justify-content: space-between;}
     body.bg-a{
       background: linear-gradient(180deg, #fdfefe 0%, #eff6ff 100%);
     }
@@ -115,33 +115,17 @@
       width: 160px;
     }
 
-    .bl_c {
-      /*transform: translate(-10%, -50%);*/
-      transform: translate(-20%, 50%);
-      top: 50%;
-      left: 50%;
-      position: absolute;
-      rotate: 90deg;
-    }
+    .bl_c, .bl_com, .bl_d{margin-left: -55px;margin-right: -55px;rotate: 90deg;white-space: nowrap;}
 
     .bl_c .btn, .bl_d .btn, .bl_com .label{
       transform:rotate(0deg);
     }
 
-    .bl_d {
-      left: 45%;
-      position: absolute;
-      rotate: 90deg;
-      white-space: nowrap;
-    }
-
     .bl_com{
-      left: 95%;
-      position: absolute;
-      rotate: 90deg;
-      white-space: nowrap;
+      margin-left: -75px;
+      margin-right: -75px;
     }
-
+    
     span{
       text-decoration: none;
       font-weight: 400;
@@ -236,8 +220,8 @@
             <div class="knob" id="knob-top" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
           </div>
         </div>
-
-        <div class="buttons-vertical">
+      </div>
+      <div class="buttons-vertical">
             <div class="btn-block">
                 <button class="btn" id="btn1">A</button>
                 <button class="btn" id="btn2">B</button>
@@ -257,7 +241,7 @@
                 <div class="label">Состояние: <span class="status">Отключено</span></div>
             </div>
             
-        </div>
+      </div>
 
         <div class="control-right">
           <div class="joystick-wrap">
@@ -269,8 +253,8 @@
             </div>
           </div>
         </div>
-      </div>
     </div>
+    
 
     <div class="col-right">
       <div class="label">Левый</div>
