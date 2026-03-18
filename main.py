@@ -5,6 +5,7 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.uix.widget import Widget
 
 import threading
 import time
@@ -194,6 +195,14 @@ class TestApp(App):
         # удалить WebView при закрытии
         if AndroidAvailable:
             PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
+
+    def on_resume(self):
+        # Это вернет Fullscreen и Landscape, когда ты развернешь приложение
+        if AndroidAvailable:
+            self.set_fullscreen()
+            # На всякий случай подтверждаем ориентацию
+            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
 if __name__ == '__main__':
     TestApp().run()
