@@ -16,6 +16,8 @@ requirements = python3,kivy,pyjnius,flask==2.0.3,werkzeug==2.0.3,markupsafe==2.0
 
 android.add_src = res
 
+android.presplash_color = #f5f7fb
+
 # версии Android
 android.api = 31
 android.minapi = 21
