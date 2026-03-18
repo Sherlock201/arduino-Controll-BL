@@ -123,64 +123,59 @@ class RootWidget(BoxLayout):
 
 class TestApp(App):
     def build(self):
-
         self.flask_thread = None
-        # Запускаем Flask один раз при старте приложения
-        #self.start_flask()
-
-        root = BoxLayout(orientation='vertical', padding=8, spacing=8)
-        self.label = Label(text="Status: Flask not started", size_hint=(1, 0.2))
-        btn_open = Button(text="Open WebView (local page)", size_hint=(1, 0.1))
-        btn_close = Button(text="Close WebView", size_hint=(1, 0.1))
-
-        btn_open.bind(on_release=lambda *a: self.open_webview())
-        btn_close.bind(on_release=lambda *a: self.close_webview())
-
-        root.add_widget(self.label)
-        root.add_widget(btn_open)
-        root.add_widget(btn_close)
-        return root
+        # Возвращаем пустой черный виджет, его никто не увидит
+        return Widget() 
         
     def on_start(self):
-        # Принудительно ставим портрет при запуске приложения
         if AndroidAvailable:
+            # 1. Сразу фиксируем горизонт (дизайнерский режим)
             ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+            
+            # 2. Прячем системные кнопки и статус-бар (Fullscreen)
+            self.set_fullscreen()
         
-        # Запускаем Flask через секунду
-        Clock.schedule_once(lambda dt: self.start_flask(), 1)
+        # 3. Запускаем Flask
+        self.start_flask()
         
-    def start_flask(self):
-        if self.flask_thread and self.flask_thread.is_alive():
-            return
-        t = threading.Thread(target=run_flask, daemon=True)
-        t.start()
-        self.flask_thread = t
-        # даём немного времени серверу подняться
-        Clock.schedule_once(lambda dt: self._update_label("Flask running at http://127.0.0.1:5000"), 1.0)
+        # 4. Открываем WebView автоматически через 0.5 сек (чтобы Flask "проснулся")
+        Clock.schedule_once(lambda dt: self.open_webview(), 0.5)
+        
+    def set_fullscreen(self):
+        if AndroidAvailable:
+            View = autoclass('android.view.View')
+            window = PythonActivity.mActivity.getWindow()
+            decorView = window.getDecorView()
+            uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
 
-    def _update_label(self, text):
-        self.label.text = text
+                       | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
+                       | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
+                       | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+
+                       | View.SYSTEM_UI_FLAG_FULLSCREEN 
+                       | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            decorView.setSystemUiVisibility(uiOptions)
+
+    def on_resume(self):
+        # Чтобы при разворачивании не вылетала полоска сверху
+        self.set_fullscreen()
+
+    def start_flask(self):
+        if not self.flask_thread or not self.flask_thread.is_alive():
+            t = threading.Thread(target=run_flask, daemon=True)
+            t.start()
+            self.flask_thread = t
 
     def open_webview(self):
         if not AndroidAvailable:
             import webbrowser
             webbrowser.open('http://127.0.0.1:5000')
-            self._update_label("Opened in external browser (desktop).")
             return
 
-        # Правильный вызов: создаем объект Runnable и передаем его в UI поток
-        #url = 'http://127.0.0.1:5000' # лучше 127.0.0.1
-        url = 'http://127.0.0.1'
-        
-        # Сначала меняем ориентацию на альбомную
-        #ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-        #PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
-        
-        # Теперь запускаем WebView
+        url = 'http://localhost:5000/'
         runnable = _AddWebViewRunnable(url)
         PythonActivity.mActivity.runOnUiThread(runnable)
-        self._update_label("WebView opened.")
 
     def close_webview(self):
         if not AndroidAvailable:
