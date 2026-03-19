@@ -158,18 +158,12 @@ class TestApp(App):
         return Widget() 
         
     def on_start(self):
-        # 1. Запускаем Flask (это чистый Python, он безопасен)
+        # 1. Запускаем Flask ОДИН раз
         self.start_flask()
         
-        # 2. Даем приложению "продышаться" 1.5 секунды, 
-        # прежде чем трогать экран, ориентацию и WebView
+        # 2. Ждем 1.5 секунды. ЭТОГО ДОСТАТОЧНО. 
+        # Внутри initial_android_setup произойдет и настройка экрана, и запуск WebView.
         Clock.schedule_once(self.initial_android_setup, 1.5)
-        
-        # 3. Запускаем Flask
-        self.start_flask()
-        
-        # 4. Открываем WebView автоматически через 0.5 сек (чтобы Flask "проснулся")
-        Clock.schedule_once(lambda dt: self.open_webview(), 0.5)
 
     def initial_android_setup(self, dt):
         if not AndroidAvailable:
