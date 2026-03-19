@@ -70,19 +70,22 @@ if AndroidAvailable:
                 window = activity.getWindow()
                 android_build = autoclass('android.os.Build')
                 
-                try:
-                    WindowInsetsController = autoclass('android.view.WindowInsetsController')
-                    WindowInsets = autoclass('android.view.WindowInsets')
+                if android_build.VERSION.SDK_INT >= 30:
+                    try:
+                        WindowInsetsController = autoclass('android.view.WindowInsetsController')
+                        WindowInsets = autoclass('android.view.WindowInsets')
 
-                    if android_build.VERSION.SDK_INT >= 30:
                         controller = window.getInsetsController()
                         if controller:
-                            controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars())
+                            controller.hide(
+                                WindowInsets.Type.statusBars() |
+                                WindowInsets.Type.navigationBars()
+                            )
                             controller.setSystemBarsBehavior(
                                 WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                             )
-                except Exception as e:
-                    print("Insets fullscreen error:", e)
+                    except Exception as e:
+                        print("Insets fullscreen error:", e)
                 
                 # 1. Прячем через параметры окна (LayoutParams)
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
