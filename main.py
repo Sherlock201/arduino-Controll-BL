@@ -69,6 +69,11 @@ if AndroidAvailable:
                 if not activity: return
                 window = activity.getWindow()
                 BuildVersion = autoclass('android.os.Build$VERSION')
+                try:
+                    WindowCompat = autoclass('androidx.core.view.WindowCompat')
+                    WindowCompat.setDecorFitsSystemWindows(window, False)
+                except:
+                    pass
 
                 if BuildVersion.SDK_INT >= 30:
                     try:
@@ -101,14 +106,14 @@ if AndroidAvailable:
 
                 # 3. Ультимативный Immersive Mode
                 decorView = window.getDecorView()
-                uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
-
-                           | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
-                           | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
-                           | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
-
-                           | View.SYSTEM_UI_FLAG_FULLSCREEN 
-                           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                uiOptions = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                )
                 decorView.setSystemUiVisibility(uiOptions)
 
                 listener = PythonJavaClass.__new__(type(
@@ -120,6 +125,7 @@ if AndroidAvailable:
 
                 decorView.setOnSystemUiVisibilityChangeListener(listener)
                 webview_ref['listener'] = listener
+                decorView.setFitsSystemWindows(False)
                 
             except Exception as e:
                 print(f"Fullscreen error: {e}")
@@ -294,7 +300,7 @@ class TestApp(App):
                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 )
                 
-            Clock.schedule_interval(lambda dt: self.set_fullscreen(), 2)
+            Clock.schedule_interval(lambda dt: self.set_fullscreen(), 0.5)
 
     def fix_webview_fullscreen(self):
         if not AndroidAvailable:
