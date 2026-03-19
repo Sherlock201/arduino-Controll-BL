@@ -56,7 +56,7 @@ def run_flask():
 webview_ref = {'view': None, 'listener': None, 'ui_listener': None, 'back_handler': None}
 
 if AndroidAvailable:
-    # 1. Сначала ВСЕ импорты из Java
+    # 1. Сначала ВСЕ импорты из Java (оставляем как у тебя)
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
@@ -66,7 +66,22 @@ if AndroidAvailable:
     BuildVersion = autoclass('android.os.Build$VERSION')
     Build = autoclass('android.os.Build')
 
-    
+    # --- ИСПРАВЛЕНИЕ: Выносим Listener наружу ---
+    class XiaomiUiListener(PythonJavaClass):
+        __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
+        
+        def __init__(self, decorView, uiOptions):
+            super().__init__()
+            self.decorView = decorView
+            self.uiOptions = uiOptions
+
+        @java_method('(I)V')
+        def onSystemUiVisibilityChange(self, visibility):
+            try:
+                # Теперь decorView не пропадет из памяти
+                self.decorView.setSystemUiVisibility(self.uiOptions)
+            except Exception as e:
+                print(f"XiaomiUiListener error: {e}")
 
     # 3. Fullscreen Runnable для Redmi
     class FullscreenRunnable(PythonJavaClass):
@@ -76,89 +91,56 @@ if AndroidAvailable:
         def run(self):
             try:
                 activity = PythonActivity.mActivity
-                if not activity: 
-                    return
+                if not activity: return
                 
                 window = activity.getWindow()
                 decorView = window.getDecorView()
                 
-                # Для Xiaomi/Redmi нужно использовать более агрессивный подход
-                
-                # 1. Сначала устанавливаем флаги окна
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
                 window.addFlags(WindowManager.FLAG_FULLSCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_IN_SCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_NO_LIMITS)
                 
-                # 2. Убираем отступы для системных баров
                 try:
                     window.setDecorFitsSystemWindows(False)
-                except:
-                    pass
+                except: pass
                 
-                # 3. Ультимативный immersive mode для View
                 uiOptions = (
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LOW_PROFILE  # Добавляем для Xiaomi
+                    | View.SYSTEM_UI_FLAG_LOW_PROFILE
                 )
                 
-                # Для Android 11+ (API 30+)
                 if BuildVersion.SDK_INT >= 30:
                     try:
                         WindowInsetsController = autoclass('android.view.WindowInsetsController')
                         WindowInsets = autoclass('android.view.WindowInsets')
-                        
                         controller = window.getInsetsController()
                         if controller:
-                            # Скрываем ВСЕ системные бары
-                            controller.hide(
-                                WindowInsets.Type.statusBars() |
-                                WindowInsets.Type.navigationBars() |
-                                WindowInsets.Type.captionBar()
-                            )
-                            # Поведение при свайпе
-                            controller.setSystemBarsBehavior(
-                                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                            )
-                    except Exception as e:
-                        print(f"API 30+ fullscreen error: {e}")
+                            controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars())
+                            controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE)
+                    except: pass
                 
-                # Применяем к decorView
-                current_ui = decorView.getSystemUiVisibility()
-                if current_ui != uiOptions:
-                    decorView.setSystemUiVisibility(uiOptions)
+                decorView.setSystemUiVisibility(uiOptions)
                 
-                # 4. Специально для Xiaomi/Redmi - убираем cutout mode
                 if BuildVersion.SDK_INT >= 28:
                     try:
                         params = window.getAttributes()
-                        # LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES = 1
                         params.layoutInDisplayCutoutMode = 1
                         window.setAttributes(params)
-                    except Exception as e:
-                        print(f"Cutout mode error: {e}")
+                    except: pass
                 
-                # 5. Постоянный мониторинг изменений UI (для Xiaomi)
-                class XiaomiUiListener(PythonJavaClass):
-                    __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
-                    
-                    @java_method('(I)V')
-                    def onSystemUiVisibilityChange(self, visibility):
-                        try:
-                            # Xiaomi иногда сбрасывает флаги, постоянно их восстанавливаем
-                            decorView.setSystemUiVisibility(uiOptions)
-                        except Exception as e:
-                            print(f"XiaomiUiListener error: {e}")
+                # --- ИСПРАВЛЕНИЕ: Используем глобальный класс ---
+                if webview_ref['ui_listener'] is None:
+                    webview_ref['ui_listener'] = XiaomiUiListener(decorView, uiOptions)
                 
-                listener = XiaomiUiListener()
-                decorView.setOnSystemUiVisibilityChangeListener(listener)
-                webview_ref['ui_listener'] = listener
-                
+                decorView.setOnSystemUiVisibilityChangeListener(webview_ref['ui_listener'])
                 decorView.setFitsSystemWindows(False)
                 
             except Exception as e:
