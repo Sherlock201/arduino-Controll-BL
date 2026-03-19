@@ -158,29 +158,42 @@ class TestApp(App):
         return Widget() 
         
     def on_start(self):
-        if AndroidAvailable:
-            # 1. Сразу фиксируем горизонт (дизайнерский режим)
-            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
-            
-            # 2. Прячем системные кнопки и статус-бар (Fullscreen)
-            self.set_fullscreen()
+        # 1. Запускаем Flask (это чистый Python, он безопасен)
+        self.start_flask()
+        
+        # 2. Даем приложению "продышаться" 1.5 секунды, 
+        # прежде чем трогать экран, ориентацию и WebView
+        Clock.schedule_once(self.initial_android_setup, 1.5)
         
         # 3. Запускаем Flask
         self.start_flask()
         
         # 4. Открываем WebView автоматически через 0.5 сек (чтобы Flask "проснулся")
         Clock.schedule_once(lambda dt: self.open_webview(), 0.5)
-        
-    def set_fullscreen(self, *args):
-        if AndroidAvailable:
-            # Создаем объект только если его еще нет И активность готова
-            if not self._fs_runnable:
-                self._fs_runnable = FullscreenRunnable()
+
+    def initial_android_setup(self, dt):
+        if not AndroidAvailable:
+            return
             
+        try:
+            # Скрываем полоски
+            self.set_fullscreen()
+            
+            # Ставим портрет
             activity = PythonActivity.mActivity
             if activity:
-                activity.runOnUiThread(self._fs_runnable)
+                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+            
+            # И только теперь, когда всё стабильно, открываем WebView
+            self.open_webview()
+        except Exception as e:
+            print(f"Late Init Error: {e}")
+            
+    def set_fullscreen(self, *args):
+        if AndroidAvailable and PythonActivity.mActivity:
+            if self._fs_runnable is None:
+                self._fs_runnable = FullscreenRunnable()
+            PythonActivity.mActivity.runOnUiThread(self._fs_runnable)
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
