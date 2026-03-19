@@ -146,20 +146,34 @@ class TestApp(App):
         # 4. Открываем WebView автоматически через 0.5 сек (чтобы Flask "проснулся")
         Clock.schedule_once(lambda dt: self.open_webview(), 0.5)
         
-    def set_fullscreen(self):
-        if AndroidAvailable:
-            View = autoclass('android.view.View')
-            window = PythonActivity.mActivity.getWindow()
-            decorView = window.getDecorView()
-            uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
+    def set_fullscreen(self, *args):
+        if not AndroidAvailable:
+            return
 
-                       | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
-                       | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
-                       | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+        # Создаем внутренний Runnable для UI-потока
+        class FullscreenRunnable(PythonJavaClass):
+            __javainterfaces__ = ['java/lang/Runnable']
+            @java_method('()V')
+            def run(self):
+                try:
+                    View = autoclass('android.view.View')
+                    activity = PythonActivity.mActivity
+                    window = activity.getWindow()
+                    decorView = window.getDecorView()
+                    uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
 
-                       | View.SYSTEM_UI_FLAG_FULLSCREEN 
-                       | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-            decorView.setSystemUiVisibility(uiOptions)
+                               | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
+                               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
+                               | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+
+                               | View.SYSTEM_UI_FLAG_FULLSCREEN 
+                               | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                    decorView.setSystemUiVisibility(uiOptions)
+                except Exception as e:
+                    print(f"UI Thread Error: {e}")
+
+        # Запускаем именно в UI потоке Android
+        PythonActivity.mActivity.runOnUiThread(FullscreenRunnable())
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
