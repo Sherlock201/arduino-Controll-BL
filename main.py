@@ -67,7 +67,14 @@ if AndroidAvailable:
             try:
                 activity = PythonActivity.mActivity
                 if activity:
-                    decorView = activity.getWindow().getDecorView()
+                    window = activity.getWindow()
+                    
+                    # Силовое скрытие через флаги окна (Layout Parameters)
+                    WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+                    window.addFlags(WindowManager.FLAG_FULLSCREEN)
+                    
+                    # Обычное скрытие через SystemUI
+                    decorView = window.getDecorView()
                     uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
 
                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
@@ -79,7 +86,6 @@ if AndroidAvailable:
                     decorView.setSystemUiVisibility(uiOptions)
             except Exception as e:
                 print(f"Fullscreen error: {e}")
-
 
     class _AddWebViewRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
@@ -174,7 +180,6 @@ class TestApp(App):
     def initial_android_setup(self, dt):
         if not AndroidAvailable:
             return
-            
         try:
             # Скрываем полоски
             self.set_fullscreen()
@@ -231,15 +236,12 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
-            # Первый раз — сразу при возврате
             self.set_fullscreen()
-            
-            # Второй раз — через полсекунды, когда MIUI закончит анимацию появления часов
+            # Тройной удар по статус-бару с разными задержками
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.5)
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 1.2)
             
-            # Подтверждаем портрет
             if PythonActivity.mActivity:
-                ActivityInfo = autoclass('android.content.pm.ActivityInfo')
                 PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
 if __name__ == '__main__':
