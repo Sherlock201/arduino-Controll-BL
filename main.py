@@ -48,37 +48,40 @@ def run_flask():
     app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
 
 # --- WebView handling (Android) ---
-webview_ref = {'view': None}  # хранить ссылку на webview, чтобы можно было удалить
+webview_ref = {'view': None}
 
 if AndroidAvailable:
+    # 1. Сначала ВСЕ импорты из Java
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    WebView = autoclass('android.webkit.WebView')
+    WebViewClient = autoclass('android.webkit.WebViewClient')
+    ViewGroupLayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
+    View = autoclass('android.view.View') # Вынеси его сюда, чтобы был доступен везде
+    ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+
+    # 2. Теперь описываем классы, которые используют эти импорты
     class FullscreenRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
         @java_method('()V')
         def run(self):
             try:
-                View = autoclass('android.view.View')
                 activity = PythonActivity.mActivity
-                decorView = activity.getWindow().getDecorView()
-                uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
+                if activity:
+                    decorView = activity.getWindow().getDecorView()
+                    uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
 
-                           | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
-                           | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
-                           | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+                               | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
+                               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
+                               | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
 
-                           | View.SYSTEM_UI_FLAG_FULLSCREEN 
-                           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-                decorView.setSystemUiVisibility(uiOptions)
+                               | View.SYSTEM_UI_FLAG_FULLSCREEN 
+                               | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                    decorView.setSystemUiVisibility(uiOptions)
             except Exception as e:
                 print(f"Fullscreen error: {e}")
 
-    # Создаем один экземпляр на всё время работы приложения
+    # 3. И только теперь создаем экземпляр
     fullscreen_runnable = FullscreenRunnable()
-
-if AndroidAvailable:
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    WebView = autoclass('android.webkit.WebView')
-    WebViewClient = autoclass('android.webkit.WebViewClient')
-    ViewGroupLayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
 
     class _AddWebViewRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
