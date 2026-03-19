@@ -188,6 +188,20 @@ if AndroidAvailable:
         def run(self):
             try:
                 activity = PythonActivity.mActivity
+                if not activity:
+                    print("Activity is None, skipping WebView creation")
+                    return
+                # --- Удаляем старый WebView, если он есть ---
+                if webview_ref.get('view'):
+                    try:
+                        parent = webview_ref['view'].getParent()
+                        if parent:
+                            parent.removeView(webview_ref['view'])
+                    except:
+                        pass
+                    webview_ref['view'] = None
+
+                # --- Теперь создаём новый WebView ---
                 wv = WebView(activity)
                 settings = wv.getSettings()
                 
@@ -262,6 +276,9 @@ if AndroidAvailable:
         def run(self):
             try:
                 activity = PythonActivity.mActivity
+                if not activity:
+                    print("Activity is None, skipping WebView creation")
+                    return
                 wv = webview_ref.get('view')
                 if wv:
                     parent = wv.getParent()
