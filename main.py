@@ -80,8 +80,6 @@ if AndroidAvailable:
             except Exception as e:
                 print(f"Fullscreen error: {e}")
 
-    # 3. И только теперь создаем экземпляр
-    fullscreen_runnable = FullscreenRunnable()
 
     class _AddWebViewRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
@@ -156,6 +154,7 @@ class TestApp(App):
     def build(self):
         self.flask_thread = None
         # Возвращаем пустой черный виджет, его никто не увидит
+        self._fs_runnable = None 
         return Widget() 
         
     def on_start(self):
@@ -175,8 +174,13 @@ class TestApp(App):
         
     def set_fullscreen(self, *args):
         if AndroidAvailable:
-            # Запускаем заранее созданный глобальный объект
-            PythonActivity.mActivity.runOnUiThread(fullscreen_runnable)
+            # Создаем объект только если его еще нет И активность готова
+            if not self._fs_runnable:
+                self._fs_runnable = FullscreenRunnable()
+            
+            activity = PythonActivity.mActivity
+            if activity:
+                activity.runOnUiThread(self._fs_runnable)
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
