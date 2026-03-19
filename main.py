@@ -108,6 +108,12 @@ if AndroidAvailable:
             wv.setHorizontalScrollBarEnabled(False)
 
             wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                                     View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | 
+                                     View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | 
+                                     View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | 
+                                     View.SYSTEM_UI_FLAG_FULLSCREEN | 
+                                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
@@ -225,13 +231,16 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
-            # Даем системе 0.2 сек, чтобы она вывела свои панели, 
-            # и тут же их "схлопываем" обратно
-            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.2)
+            # Первый раз — сразу при возврате
+            self.set_fullscreen()
             
-            # Подтверждаем портрет (если ты решила остаться в нем)
-            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-            PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+            # Второй раз — через полсекунды, когда MIUI закончит анимацию появления часов
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.5)
+            
+            # Подтверждаем портрет
+            if PythonActivity.mActivity:
+                ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+                PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
 if __name__ == '__main__':
     TestApp().run()
