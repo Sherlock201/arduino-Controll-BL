@@ -66,11 +66,7 @@ if AndroidAvailable:
     BuildVersion = autoclass('android.os.Build$VERSION')
     Build = autoclass('android.os.Build')
 
-    # 2. Кастомный WebViewClient
-    class WebViewClientWithBack(WebViewClient):
-        def shouldOverrideUrlLoading(self, view, url):
-            view.loadUrl(url)
-            return True
+    
 
     # 3. Fullscreen Runnable для Redmi
     class FullscreenRunnable(PythonJavaClass):
@@ -226,7 +222,7 @@ if AndroidAvailable:
                 wv.clearFocus()
                 
                 # Используем кастомный WebViewClient
-                wv.setWebViewClient(WebViewClientWithBack())
+                wv.setWebViewClient(WebViewClient())
                 
                 # Добавляем обработку back button
                 class BackHandler(PythonJavaClass):
@@ -391,7 +387,7 @@ class TestApp(App):
         # Для Redmi дополнительно применяем fullscreen после открытия WebView
         if self._redmi_mode:
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.3)
-            Clock.schedule_once(lambda dt: self.aggressive_fullscreen_fix(None), 0.5)
+            Clock.schedule_once(self.aggressive_fullscreen_fix, 0.5)
 
     def fix_webview_fullscreen(self, *args):
         if not AndroidAvailable:
