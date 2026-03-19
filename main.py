@@ -1,4 +1,4 @@
-# main.py (полностью исправленный)
+# main.py
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
@@ -55,7 +55,7 @@ if AndroidAvailable:
     BuildVersion = autoclass('android.os.Build$VERSION')
     Build = autoclass('android.os.Build')
 
-    # --- Listener для системных UI (без хранения View) ---
+    # --- Listener для системных UI (с полными проверками) ---
     class XiaomiUiListener(PythonJavaClass):
         __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
         
@@ -67,12 +67,40 @@ if AndroidAvailable:
         def onSystemUiVisibilityChange(self, visibility):
             try:
                 activity = PythonActivity.mActivity
-                if not activity:
+                if activity is None:
                     return
-                decorView = activity.getWindow().getDecorView()
+                window = activity.getWindow()
+                if window is None:
+                    return
+                decorView = window.getDecorView()
+                if decorView is None:
+                    return
                 decorView.setSystemUiVisibility(self.uiOptions)
             except Exception as e:
                 print(f"XiaomiUiListener error: {e}")
+
+    # --- BackHandler с проверками ---
+    class BackHandler(PythonJavaClass):
+        __javainterfaces__ = ['android/view/View$OnKeyListener']
+        
+        def __init__(self, webview):
+            super().__init__()
+            self.webview = webview
+
+        @java_method('(Landroid/view/View;ILandroid/view/KeyEvent;)Z')
+        def onKey(self, v, keyCode, event):
+            if keyCode == 4 and event.getAction() == 0:  # BACK button down
+                wv = self.webview
+                if wv is None:
+                    return False
+                try:
+                    # Проверяем, что WebView ещё жив и имеет родителя
+                    if wv.getParent() is not None and wv.canGoBack():
+                        wv.goBack()
+                        return True
+                except Exception:
+                    pass
+            return False
 
     # --- Fullscreen Runnable ---
     class FullscreenRunnable(PythonJavaClass):
@@ -172,13 +200,15 @@ if AndroidAvailable:
                 # Удаляем старый WebView, если есть
                 old_wv = webview_ref.get('view')
                 if old_wv:
+                    try:
+                        old_wv.setOnKeyListener(None)
+                    except:
+                        pass
                     parent = old_wv.getParent()
                     if parent:
                         parent.removeView(old_wv)
                     webview_ref['view'] = None
-
-                # Удаляем старый back handler (чтобы не висел)
-                webview_ref['back_handler'] = None
+                    webview_ref['back_handler'] = None
 
                 # Создаём новый WebView
                 wv = WebView(activity)
@@ -211,19 +241,8 @@ if AndroidAvailable:
 
                 wv.setWebViewClient(WebViewClient())
 
-                # Back button handler (новый)
-                class BackHandler(PythonJavaClass):
-                    __javainterfaces__ = ['android/view/View$OnKeyListener']
-                    
-                    @java_method('(Landroid/view/View;ILandroid/view/KeyEvent;)Z')
-                    def onKey(self, v, keyCode, event):
-                        if keyCode == 4 and event.getAction() == 0:
-                            if wv.canGoBack():
-                                wv.goBack()
-                                return True
-                        return False
-
-                back_handler = BackHandler()
+                # Back button handler (с передачей ссылки на WebView)
+                back_handler = BackHandler(wv)
                 wv.setOnKeyListener(back_handler)
                 webview_ref['back_handler'] = back_handler
 
@@ -242,7 +261,7 @@ if AndroidAvailable:
             except Exception as e:
                 print(f"Error adding WebView: {e}")
 
-    # --- Runnable для удаления WebView ---
+    # --- Runnable для удаления WebView (с очисткой слушателя) ---
     class _RemoveWebViewRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
         @java_method('()V')
@@ -253,6 +272,10 @@ if AndroidAvailable:
                     return
                 wv = webview_ref.get('view')
                 if wv:
+                    try:
+                        wv.setOnKeyListener(None)
+                    except:
+                        pass
                     parent = wv.getParent()
                     if parent:
                         parent.removeView(wv)
@@ -441,6 +464,8 @@ class TestApp(App):
 
     def on_stop(self):
         if AndroidAvailable:
+            # Удаляем ссылку на слушатель системных UI
+            webview_ref['ui_listener'] = None
             PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
 
 if __name__ == '__main__':
