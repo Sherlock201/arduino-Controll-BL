@@ -68,15 +68,27 @@ if AndroidAvailable:
                 activity = PythonActivity.mActivity
                 if not activity: return
                 window = activity.getWindow()
+                android_build = autoclass('android.os.Build')
+                
+                try:
+                    WindowInsetsController = autoclass('android.view.WindowInsetsController')
+                    WindowInsets = autoclass('android.view.WindowInsets')
+
+                    if android_build.VERSION.SDK_INT >= 30:
+                        controller = window.getInsetsController()
+                        if controller:
+                            controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars())
+                            controller.setSystemBarsBehavior(
+                                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            )
+                except Exception as e:
+                    print("Insets fullscreen error:", e)
                 
                 # 1. Прячем через параметры окна (LayoutParams)
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
                 window.addFlags(WindowManager.FLAG_FULLSCREEN)
                 # Хак для Xiaomi: разрешаем контенту быть "под" системными барами
                 window.addFlags(WindowManager.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-                
-                # 2. Вырез (Notch) — убираем полоску в районе камеры
-                android_build = autoclass('android.os.Build') 
 
                 # А в самом Runnable измени условие на:
                 if android_build.VERSION.SDK_INT >= 28:
