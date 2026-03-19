@@ -51,6 +51,30 @@ def run_flask():
 webview_ref = {'view': None}  # хранить ссылку на webview, чтобы можно было удалить
 
 if AndroidAvailable:
+    class FullscreenRunnable(PythonJavaClass):
+        __javainterfaces__ = ['java/lang/Runnable']
+        @java_method('()V')
+        def run(self):
+            try:
+                View = autoclass('android.view.View')
+                activity = PythonActivity.mActivity
+                decorView = activity.getWindow().getDecorView()
+                uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
+
+                           | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
+                           | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
+                           | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+
+                           | View.SYSTEM_UI_FLAG_FULLSCREEN 
+                           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                decorView.setSystemUiVisibility(uiOptions)
+            except Exception as e:
+                print(f"Fullscreen error: {e}")
+
+    # Создаем один экземпляр на всё время работы приложения
+    fullscreen_runnable = FullscreenRunnable()
+
+if AndroidAvailable:
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
@@ -147,33 +171,9 @@ class TestApp(App):
         Clock.schedule_once(lambda dt: self.open_webview(), 0.5)
         
     def set_fullscreen(self, *args):
-        if not AndroidAvailable:
-            return
-
-        # Создаем внутренний Runnable для UI-потока
-        class FullscreenRunnable(PythonJavaClass):
-            __javainterfaces__ = ['java/lang/Runnable']
-            @java_method('()V')
-            def run(self):
-                try:
-                    View = autoclass('android.view.View')
-                    activity = PythonActivity.mActivity
-                    window = activity.getWindow()
-                    decorView = window.getDecorView()
-                    uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
-
-                               | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
-                               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
-                               | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
-
-                               | View.SYSTEM_UI_FLAG_FULLSCREEN 
-                               | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-                    decorView.setSystemUiVisibility(uiOptions)
-                except Exception as e:
-                    print(f"UI Thread Error: {e}")
-
-        # Запускаем именно в UI потоке Android
-        PythonActivity.mActivity.runOnUiThread(FullscreenRunnable())
+        if AndroidAvailable:
+            # Запускаем заранее созданный глобальный объект
+            PythonActivity.mActivity.runOnUiThread(fullscreen_runnable)
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
