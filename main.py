@@ -134,6 +134,16 @@ if AndroidAvailable:
                 decorView.setOnSystemUiVisibilityChangeListener(listener)
                 webview_ref['listener'] = listener
                 decorView.setFitsSystemWindows(False)
+
+                if controller:
+                    controller.hide(
+                        WindowInsets.Type.statusBars() |
+                        WindowInsets.Type.navigationBars()
+                    )
+                    window.setFlags(
+                        WindowManager.FLAG_LAYOUT_NO_LIMITS,
+                        WindowManager.FLAG_LAYOUT_NO_LIMITS
+                    )
                 
             except Exception as e:
                 print(f"Fullscreen error: {e}")
