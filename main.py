@@ -116,13 +116,21 @@ if AndroidAvailable:
                 )
                 decorView.setSystemUiVisibility(uiOptions)
 
-                listener = PythonJavaClass.__new__(type(
-                    "UiListener", (PythonJavaClass,), {
-                    "__javainterfaces__": ['android/view/View$OnSystemUiVisibilityChangeListener'],
-                    "onSystemUiVisibilityChange": java_method('(I)V')(lambda self, vis: decorView.setSystemUiVisibility(uiOptions))
-                    }
-                ))()
+                # --- новый UiListener класс ---
+                decorView_local = decorView
+                uiOptions_local = uiOptions
+                
+                class UiListener(PythonJavaClass):
+                    __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
 
+                    @java_method('(I)V')
+                    def onSystemUiVisibilityChange(self, vis):
+                        try:
+                            decorView_local.setSystemUiVisibility(uiOptions_local)
+                        except Exception as e:
+                            print("UiListener error:", e)
+
+                listener = UiListener()
                 decorView.setOnSystemUiVisibilityChangeListener(listener)
                 webview_ref['listener'] = listener
                 decorView.setFitsSystemWindows(False)
