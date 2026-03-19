@@ -291,32 +291,41 @@ class TestApp(App):
                 pass
     
     def build(self):
-        # Возвращаем пустой черный виджет
-        return Widget()
+        self.flask_thread = None
+        self._fs_runnable = None
+        # Возвращаем Widget и больше НИЧЕГО не трогаем в build
+        return Widget() 
     
     def on_start(self):
         # Запускаем Flask
         self.start_flask()
         
-        # Ждем 1.5 секунды для инициализации
-        Clock.schedule_once(self.initial_android_setup, 1.5)
+        # Ждем 2.5 секунды для инициализации
+        Clock.schedule_once(self.initial_android_setup, 2.5)
 
     def initial_android_setup(self, dt):
         if not AndroidAvailable:
             return
+        
+        # Проверяем, что активность жива, прежде чем лезть в неё
+        activity = PythonActivity.mActivity
+        if not activity:
+            # Если еще не готова, попробуем еще через секунду
+            Clock.schedule_once(self.initial_android_setup, 1.0)
+            return
+
         try:
-            # Скрываем полоски
+            # Сначала ориентация
+            ActivityInfo = autoclass('android.content.pm.ActivityInfo')
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+            
+            # Потом Fullscreen
             self.set_fullscreen()
             
-            # Ставим портрет
-            activity = PythonActivity.mActivity
-            if activity:
-                activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
-            
-            # Открываем WebView
+            # И в самом конце WebView
             self.open_webview()
         except Exception as e:
-            print(f"Late Init Error: {e}")
+            print(f"Safe Init Error: {e}")
     
     def set_fullscreen(self, *args):
         if AndroidAvailable and PythonActivity.mActivity:
@@ -464,6 +473,7 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.8)
             print("App resumed - reapplying fullscreen")
             
             # Отменяем все старые интервалы
