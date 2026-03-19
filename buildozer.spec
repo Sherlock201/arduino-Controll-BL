@@ -28,7 +28,7 @@ android.accept_sdk_license = True
 android.archs = arm64-v8a
 android.fullscreen = True
 
-android.gradle_dependencies = 'androidx.core:core:1.6.0'
+android.gradle_dependencies = androidx.core:core:1.6.0
 android.enable_androidx = True
 
 # разрешения (нужны для Bluetooth)
