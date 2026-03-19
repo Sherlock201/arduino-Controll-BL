@@ -204,6 +204,9 @@
       /* Блокирует pull-to-refresh и эффект "отскока" (bounce) */
       overscroll-behavior-y: none;
     }
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
     .joystick-wrap, .control-left, .container {overflow: visible !important; /* Разрешаем теням выходить за границы */}
 
     /*@media (max-width:640px){:root{--size:160px;--knob:44px}.container{gap:12px}.btn{width:40px;height:40px}}*/
