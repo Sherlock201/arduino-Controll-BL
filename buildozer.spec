@@ -26,6 +26,7 @@ android.ndk = 25b
 android.accept_sdk_license = True
 
 android.arch = arm64-v8a
+android.fullscreen = True
 
 # разрешения (нужны для Bluetooth)
 android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
