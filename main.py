@@ -253,15 +253,50 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
-            # Серия "пинков" системе через разные интервалы
             self.set_fullscreen()
+        
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.3)
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 1.0)
-            Clock.schedule_once(lambda dt: self.set_fullscreen(), 2.5) # На случай тяжелой отрисовки
-            
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 2.5)
+
+            self.fix_webview_fullscreen()
+            Clock.schedule_once(lambda dt: self.fix_webview_fullscreen(), 0.5)
+
             if PythonActivity.mActivity:
                 ActivityInfo = autoclass('android.content.pm.ActivityInfo')
-                PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+                PythonActivity.mActivity.setRequestedOrientation(
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                )
+
+    def fix_webview_fullscreen(self):
+        if not AndroidAvailable:
+            return
+
+        def apply_flags():
+            try:
+                wv = webview_ref.get('view')
+                if wv:
+                    View = autoclass('android.view.View')
+                    uiOptions = (
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    )
+                    wv.setSystemUiVisibility(uiOptions)
+            except Exception as e:
+                print("WebView fullscreen fix error:", e)
+
+        class RunnableFix(PythonJavaClass):
+            __javainterfaces__ = ['java/lang/Runnable']
+
+            @java_method('()V')
+            def run(self):
+                apply_flags()
+
+        PythonActivity.mActivity.runOnUiThread(RunnableFix())
 
 if __name__ == '__main__':
     TestApp().run()
