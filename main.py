@@ -66,24 +66,33 @@ if AndroidAvailable:
         def run(self):
             try:
                 activity = PythonActivity.mActivity
-                if activity:
-                    window = activity.getWindow()
-                    
-                    # Силовое скрытие через флаги окна (Layout Parameters)
-                    WindowManager = autoclass('android.view.WindowManager$LayoutParams')
-                    window.addFlags(WindowManager.FLAG_FULLSCREEN)
-                    
-                    # Обычное скрытие через SystemUI
-                    decorView = window.getDecorView()
-                    uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
+                if not activity: return
+                window = activity.getWindow()
 
-                               | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
-                               | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
-                               | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+                # 1. Скрываем статус-бар через параметры окна (для старых систем)
+                WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+                window.addFlags(WindowManager.FLAG_FULLSCREEN)
+                window.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
 
-                               | View.SYSTEM_UI_FLAG_FULLSCREEN 
-                               | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-                    decorView.setSystemUiVisibility(uiOptions)
+                # 2. Хак для Xiaomi/Samsung: разрешаем контенту заходить под "челку" (Notch)
+                # Это убирает черную/белую полосу сверху
+                if android.os.Build.VERSION.SDK_INT >= 28:
+                    attribs = window.getAttributes()
+                    # 1 = LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    attribs.layoutInDisplayCutoutMode = 1 
+                    window.setAttributes(attribs)
+
+                # 3. Основные флаги погружения (Sticky Immersive)
+                decorView = window.getDecorView()
+                uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
+
+                           | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION 
+                           | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN 
+                           | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION 
+
+                           | View.SYSTEM_UI_FLAG_FULLSCREEN 
+                           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+                decorView.setSystemUiVisibility(uiOptions)
             except Exception as e:
                 print(f"Fullscreen error: {e}")
 
@@ -112,6 +121,9 @@ if AndroidAvailable:
             wv.setInitialScale(0)
             wv.setVerticalScrollBarEnabled(False)
             wv.setHorizontalScrollBarEnabled(False)
+
+            wv.setFocusable(True)
+            wv.setFocusableInTouchMode(True)
 
             wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
             wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
@@ -236,12 +248,14 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
+            # Тройной удар: сразу, через 0.5с и через 1.2с
+            # Это гарантирует, что мы "схлопнем" полоски, как только система их отрисует
             self.set_fullscreen()
-            # Тройной удар по статус-бару с разными задержками
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.5)
             Clock.schedule_once(lambda dt: self.set_fullscreen(), 1.2)
             
             if PythonActivity.mActivity:
+                ActivityInfo = autoclass('android.content.pm.ActivityInfo')
                 PythonActivity.mActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
 
 if __name__ == '__main__':
