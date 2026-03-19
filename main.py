@@ -68,21 +68,23 @@ if AndroidAvailable:
                 activity = PythonActivity.mActivity
                 if not activity: return
                 window = activity.getWindow()
-
-                # 1. Скрываем статус-бар через параметры окна (для старых систем)
+                
+                # 1. Прячем через параметры окна (LayoutParams)
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
                 window.addFlags(WindowManager.FLAG_FULLSCREEN)
-                window.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                # Хак для Xiaomi: разрешаем контенту быть "под" системными барами
+                window.addFlags(WindowManager.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                
+                # 2. Вырез (Notch) — убираем полоску в районе камеры
+                android_build = autoclass('android.os.Build') 
 
-                # 2. Хак для Xiaomi/Samsung: разрешаем контенту заходить под "челку" (Notch)
-                # Это убирает черную/белую полосу сверху
-                if android.os.Build.VERSION.SDK_INT >= 28:
-                    attribs = window.getAttributes()
-                    # 1 = LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                    attribs.layoutInDisplayCutoutMode = 1 
-                    window.setAttributes(attribs)
+                # А в самом Runnable измени условие на:
+                if android_build.VERSION.SDK_INT >= 28:
+                    params = window.getAttributes()
+                    params.layoutInDisplayCutoutMode = 1 # SHORT_EDGES
+                    window.setAttributes(params)
 
-                # 3. Основные флаги погружения (Sticky Immersive)
+                # 3. Ультимативный Immersive Mode
                 decorView = window.getDecorView()
                 uiOptions = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE 
 
@@ -125,13 +127,16 @@ if AndroidAvailable:
             wv.setFocusable(True)
             wv.setFocusableInTouchMode(True)
 
-            wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            # Запрещаем WebView влиять на системные бары
             wv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
                                      View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | 
                                      View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | 
                                      View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | 
                                      View.SYSTEM_UI_FLAG_FULLSCREEN | 
                                      View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+            
+            # Убираем фокус с WebView при старте, чтобы Kivy контролировал экран
+            wv.clearFocus() 
             
             # --- ХАК ДЛЯ ЗАГРУЗКИ БЕЗ ОШИБКИ CLEARTEXT ---
             # Читаем содержимое index.html из папки www напрямую в Python
@@ -248,11 +253,11 @@ class TestApp(App):
 
     def on_resume(self):
         if AndroidAvailable:
-            # Тройной удар: сразу, через 0.5с и через 1.2с
-            # Это гарантирует, что мы "схлопнем" полоски, как только система их отрисует
+            # Серия "пинков" системе через разные интервалы
             self.set_fullscreen()
-            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.5)
-            Clock.schedule_once(lambda dt: self.set_fullscreen(), 1.2)
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 0.3)
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 1.0)
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), 2.5) # На случай тяжелой отрисовки
             
             if PythonActivity.mActivity:
                 ActivityInfo = autoclass('android.content.pm.ActivityInfo')
