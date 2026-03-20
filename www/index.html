@@ -20,9 +20,20 @@
       width: 100%;
       margin: 0;
       padding: 0;
+      inset: 0;
       overflow: hidden; /* Запрещает любой скролл */
       position: fixed; /* Фиксирует экран от "прыжков" */
     }
+    #rotator {
+  position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+    overflow: hidden;
+  }
     
     /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
     .container{
@@ -213,6 +224,7 @@
   </style>
 </head>
 <body class="bg-a">
+  <div id="rotator">
   <div class="container">
     <div class="col-left">
       <div class="control-left">
@@ -271,7 +283,7 @@
     </div>
   </div>
 
-
+</div>
   <script>
     (async function(){
       let device, server, txChar, rxChar;
@@ -540,5 +552,6 @@
 
     })();
   </script>
+  
 </body>
 </html>
