@@ -38,7 +38,8 @@ def run_flask():
     flask_app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
 
 # --- WebView and Fullscreen ---
-webview_ref = {'view': None, 'listener': None}
+# Расширяем webview_ref для хранения последнего decorView и слушателя
+webview_ref = {'view': None, 'listener': None, 'decor_view': None}
 
 if AndroidAvailable:
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -129,19 +130,20 @@ if AndroidAvailable:
                 )
                 decorView.setSystemUiVisibility(uiOptions)
 
-                # Удаляем старый слушатель, если есть
-                old_listener = webview_ref.get('listener')
-                if old_listener:
+                # Удаляем старый слушатель с предыдущего decorView
+                old_decor = webview_ref.get('decor_view')
+                if old_decor:
                     try:
-                        decorView.setOnSystemUiVisibilityChangeListener(None)
+                        old_decor.setOnSystemUiVisibilityChangeListener(None)
                     except:
                         pass
-                    webview_ref['listener'] = None
+                    webview_ref['decor_view'] = None
 
-                # Создаём и устанавливаем новый
+                # Создаём и устанавливаем новый слушатель
                 new_listener = UiListener(uiOptions)
                 decorView.setOnSystemUiVisibilityChangeListener(new_listener)
                 webview_ref['listener'] = new_listener
+                webview_ref['decor_view'] = decorView
                 decorView.setFitsSystemWindows(False)
 
                 if controller:
@@ -276,16 +278,16 @@ class TestApp(App):
             PythonActivity.mActivity.runOnUiThread(self._fs_runnable)
 
     def remove_ui_listener(self):
-        """Снимает слушатель системных UI, чтобы избежать вызовов после уничтожения."""
-        if AndroidAvailable and PythonActivity.mActivity:
-            try:
-                window = PythonActivity.mActivity.getWindow()
-                if window:
-                    decorView = window.getDecorView()
-                    decorView.setOnSystemUiVisibilityChangeListener(None)
-            except Exception as e:
-                print(f"Remove listener error: {e}")
-        webview_ref['listener'] = None
+        """Снимает слушатель системных UI с сохранённого decorView."""
+        if AndroidAvailable:
+            old_decor = webview_ref.get('decor_view')
+            if old_decor:
+                try:
+                    old_decor.setOnSystemUiVisibilityChangeListener(None)
+                except Exception as e:
+                    print(f"Error removing listener: {e}")
+            webview_ref['decor_view'] = None
+            webview_ref['listener'] = None
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
@@ -346,6 +348,8 @@ class TestApp(App):
         if not AndroidAvailable:
             return
         print("App resumed - reapplying fullscreen")
+        # Сначала удаляем старый слушатель, чтобы он не вызывался при восстановлении
+        self.remove_ui_listener()
         Clock.unschedule(self.set_fullscreen)
         intervals = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0]
         for interval in intervals:
@@ -362,7 +366,7 @@ class TestApp(App):
 
     def on_pause(self):
         if AndroidAvailable:
-            # Снимаем слушатель, чтобы он не вызывался после уничтожения
+            # Снимаем слушатель, чтобы он не вызывался после паузы
             self.remove_ui_listener()
             Clock.unschedule(self.set_fullscreen)
         return True
