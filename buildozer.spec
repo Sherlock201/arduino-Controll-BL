@@ -12,7 +12,8 @@ source.include_exts = py,kv,html,css,js,png,jpg
 version = 0.1
 
 # главный питоновский файл
-requirements = python3,kivy,pyjnius,flask==2.0.3,werkzeug==2.0.3,markupsafe==2.0.1
+#requirements = python3,kivy,pyjnius,flask==2.0.3,werkzeug==2.0.3,markupsafe==2.0.1
+requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3
 
 android.add_src = res
 
