@@ -19,29 +19,28 @@ except Exception as e:
     AndroidAvailable = False
     print("pyjnius not available:", e)
 
-# --- Flask app (serves local files in ./www) ---
+# --- Flask app ---
 www_dir = os.path.join(os.getcwd(), 'www')
-app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
+flask_app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
 
-@app.route('/')
+@flask_app.route('/')
 def index():
     index_path = os.path.join(www_dir, 'index.html')
     if os.path.exists(index_path):
         return render_template_string(open(index_path, 'r', encoding='utf-8').read())
     return "<h1>Flask running</h1><p>Put index.html into /www folder.</p>"
 
-@app.route('/<path:filename>')
+@flask_app.route('/<path:filename>')
 def static_files(filename):
     return send_from_directory(www_dir, filename)
 
 def run_flask():
-    app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
+    flask_app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
 
-# --- WebView handling (Android) ---
+# --- Android WebView and Fullscreen ---
 webview_ref = {'view': None, 'listener': None}
 
 if AndroidAvailable:
-    # Импорты Java
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
@@ -61,24 +60,22 @@ if AndroidAvailable:
                     return
                 window = activity.getWindow()
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
-                # Принудительно добавляем флаги
+
+                # --- Критичные флаги для полного скрытия баров ---
                 window.addFlags(WindowManager.FLAG_FULLSCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_IN_SCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_NO_LIMITS)
-                # Для старых версий
                 window.addFlags(WindowManager.FLAG_TRANSLUCENT_STATUS)
                 window.addFlags(WindowManager.FLAG_TRANSLUCENT_NAVIGATION)
-                # Для Xiaomi
                 window.addFlags(WindowManager.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
 
-                # Убираем отступы для системных баров
+                # Убираем fitsSystemWindows
                 try:
-                    WindowCompat = autoclass('androidx.core.view.WindowCompat')
-                    WindowCompat.setDecorFitsSystemWindows(window, False)
+                    window.setDecorFitsSystemWindows(False)
                 except:
                     pass
 
-                # Cutout mode
+                # Cutout mode (для вырезов)
                 if BuildVersion.SDK_INT >= 28:
                     params = window.getAttributes()
                     params.layoutInDisplayCutoutMode = 1  # SHORT_EDGES
@@ -115,7 +112,7 @@ if AndroidAvailable:
                 )
                 decorView.setSystemUiVisibility(uiOptions)
 
-                # Listener для восстановления после изменений
+                # Слушатель для восстановления после изменений системы
                 class UiListener(PythonJavaClass):
                     __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
 
@@ -131,15 +128,16 @@ if AndroidAvailable:
                         except Exception as e:
                             print("UiListener error:", e)
 
-                # Удаляем старый listener
-                if webview_ref.get('listener'):
+                # Заменяем слушатель
+                old = webview_ref.get('listener')
+                if old:
                     webview_ref['listener'] = None
                 listener = UiListener()
                 decorView.setOnSystemUiVisibilityChangeListener(listener)
                 webview_ref['listener'] = listener
                 decorView.setFitsSystemWindows(False)
 
-                # Если controller получен, применяем ещё раз
+                # Дополнительные флаги, если controller доступен
                 if controller:
                     controller.hide(
                         WindowInsets.Type.statusBars() |
@@ -177,12 +175,12 @@ if AndroidAvailable:
                 if not activity:
                     return
 
-                # Удаляем старый WebView
-                old = webview_ref.get('view')
-                if old:
-                    parent = old.getParent()
+                # Удаляем старый WebView, если есть
+                old_wv = webview_ref.get('view')
+                if old_wv:
+                    parent = old_wv.getParent()
                     if parent:
-                        parent.removeView(old)
+                        parent.removeView(old_wv)
                     webview_ref['view'] = None
 
                 wv = WebView(activity)
@@ -202,22 +200,25 @@ if AndroidAvailable:
                 wv.setFocusable(True)
                 wv.setFocusableInTouchMode(True)
 
+                # Принудительно скрываем системные бары внутри WebView
                 wv.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_FULLSCREEN |
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                    View.SYSTEM_UI_FLAG_LOW_PROFILE
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LOW_PROFILE
                 )
                 wv.clearFocus()
-
                 wv.setWebViewClient(WebViewClient())
+
+                # Загружаем HTML
                 wv.loadDataWithBaseURL('http://localhost:5000/',
                                         self.html_content,
                                         'text/html', 'UTF-8', None)
 
+                # Параметры layout: растягиваем на весь экран
                 params = ViewGroupLayoutParams(
                     ViewGroupLayoutParams.MATCH_PARENT,
                     ViewGroupLayoutParams.MATCH_PARENT
@@ -260,10 +261,11 @@ class TestApp(App):
         if not AndroidAvailable:
             return
         try:
-            self.set_fullscreen()
+            # Устанавливаем портретную ориентацию
             activity = PythonActivity.mActivity
             if activity:
                 activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+            self.set_fullscreen()
             self.open_webview()
         except Exception as e:
             print(f"Init Error: {e}")
@@ -296,17 +298,15 @@ class TestApp(App):
             try:
                 wv = webview_ref.get('view')
                 if wv:
-                    # Применяем immersive к WebView
                     wv.setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                        View.SYSTEM_UI_FLAG_FULLSCREEN |
-                        View.SYSTEM_UI_FLAG_LOW_PROFILE
+                        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LOW_PROFILE
                     )
-                    # Если API >= 30, скрыть через WindowInsetsController
                     if BuildVersion.SDK_INT >= 30:
                         try:
                             WindowInsetsController = autoclass('android.view.WindowInsetsController')
@@ -332,21 +332,24 @@ class TestApp(App):
         PythonActivity.mActivity.runOnUiThread(RunnableFix())
 
     def on_resume(self):
-        if AndroidAvailable:
-            self.set_fullscreen()
-            # Многократное применение для Redmi
-            intervals = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0]
-            for interval in intervals:
-                Clock.schedule_once(lambda dt: self.set_fullscreen(), interval)
+        if not AndroidAvailable:
+            return
+        print("App resumed - reapplying fullscreen")
+        Clock.unschedule(self.set_fullscreen)
 
-            self.fix_webview_fullscreen()
-            Clock.schedule_once(lambda dt: self.fix_webview_fullscreen(), 0.5)
-            Clock.schedule_once(lambda dt: self.fix_webview_fullscreen(), 1.0)
+        # Многократное применение для Redmi
+        intervals = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0]
+        for interval in intervals:
+            Clock.schedule_once(lambda dt: self.set_fullscreen(), interval)
 
-            if PythonActivity.mActivity:
-                PythonActivity.mActivity.setRequestedOrientation(
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                )
+        self.fix_webview_fullscreen()
+        Clock.schedule_once(lambda dt: self.fix_webview_fullscreen(), 0.5)
+        Clock.schedule_once(lambda dt: self.fix_webview_fullscreen(), 1.0)
+
+        if PythonActivity.mActivity:
+            PythonActivity.mActivity.setRequestedOrientation(
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            )
 
     def on_pause(self):
         if AndroidAvailable:
@@ -355,7 +358,6 @@ class TestApp(App):
 
     def on_stop(self):
         if AndroidAvailable:
-            # Убираем слушатель, чтобы не вызывался после закрытия
             webview_ref['listener'] = None
             PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
 
