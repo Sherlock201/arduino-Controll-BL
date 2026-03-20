@@ -37,7 +37,7 @@ def static_files(filename):
 def run_flask():
     flask_app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
 
-# --- Android WebView and Fullscreen ---
+# --- WebView and Fullscreen ---
 webview_ref = {'view': None, 'listener': None}
 
 if AndroidAvailable:
@@ -50,6 +50,28 @@ if AndroidAvailable:
     BuildVersion = autoclass('android.os.Build$VERSION')
     Build = autoclass('android.os.Build')
 
+    class UiListener(PythonJavaClass):
+        __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
+        def __init__(self, uiOptions):
+            super().__init__()
+            self.uiOptions = uiOptions
+
+        @java_method('(I)V')
+        def onSystemUiVisibilityChange(self, vis):
+            try:
+                act = PythonActivity.mActivity
+                if not act:
+                    return
+                win = act.getWindow()
+                if not win:
+                    return
+                decorView = win.getDecorView()
+                if not decorView:
+                    return
+                decorView.setSystemUiVisibility(self.uiOptions)
+            except Exception as e:
+                print("UiListener error:", e)
+
     class FullscreenRunnable(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
         @java_method('()V')
@@ -61,7 +83,6 @@ if AndroidAvailable:
                 window = activity.getWindow()
                 WindowManager = autoclass('android.view.WindowManager$LayoutParams')
 
-                # --- Критичные флаги для полного скрытия баров ---
                 window.addFlags(WindowManager.FLAG_FULLSCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_IN_SCREEN)
                 window.addFlags(WindowManager.FLAG_LAYOUT_NO_LIMITS)
@@ -69,19 +90,16 @@ if AndroidAvailable:
                 window.addFlags(WindowManager.FLAG_TRANSLUCENT_NAVIGATION)
                 window.addFlags(WindowManager.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
 
-                # Убираем fitsSystemWindows
                 try:
                     window.setDecorFitsSystemWindows(False)
                 except:
                     pass
 
-                # Cutout mode (для вырезов)
                 if BuildVersion.SDK_INT >= 28:
                     params = window.getAttributes()
-                    params.layoutInDisplayCutoutMode = 1  # SHORT_EDGES
+                    params.layoutInDisplayCutoutMode = 1
                     window.setAttributes(params)
 
-                # Для Android 11+ через WindowInsetsController
                 controller = None
                 if BuildVersion.SDK_INT >= 30:
                     try:
@@ -99,7 +117,6 @@ if AndroidAvailable:
                     except Exception as e:
                         print("Insets error:", e)
 
-                # Immersive mode для decorView
                 decorView = window.getDecorView()
                 uiOptions = (
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -112,32 +129,21 @@ if AndroidAvailable:
                 )
                 decorView.setSystemUiVisibility(uiOptions)
 
-                # Слушатель для восстановления после изменений системы
-                class UiListener(PythonJavaClass):
-                    __javainterfaces__ = ['android/view/View$OnSystemUiVisibilityChangeListener']
-
-                    @java_method('(I)V')
-                    def onSystemUiVisibilityChange(self, vis):
-                        try:
-                            act = PythonActivity.mActivity
-                            if act:
-                                win = act.getWindow()
-                                if win:
-                                    dv = win.getDecorView()
-                                    dv.setSystemUiVisibility(uiOptions)
-                        except Exception as e:
-                            print("UiListener error:", e)
-
-                # Заменяем слушатель
-                old = webview_ref.get('listener')
-                if old:
+                # Удаляем старый слушатель, если есть
+                old_listener = webview_ref.get('listener')
+                if old_listener:
+                    try:
+                        decorView.setOnSystemUiVisibilityChangeListener(None)
+                    except:
+                        pass
                     webview_ref['listener'] = None
-                listener = UiListener()
-                decorView.setOnSystemUiVisibilityChangeListener(listener)
-                webview_ref['listener'] = listener
+
+                # Создаём и устанавливаем новый
+                new_listener = UiListener(uiOptions)
+                decorView.setOnSystemUiVisibilityChangeListener(new_listener)
+                webview_ref['listener'] = new_listener
                 decorView.setFitsSystemWindows(False)
 
-                # Дополнительные флаги, если controller доступен
                 if controller:
                     controller.hide(
                         WindowInsets.Type.statusBars() |
@@ -147,7 +153,6 @@ if AndroidAvailable:
                         WindowManager.FLAG_LAYOUT_NO_LIMITS,
                         WindowManager.FLAG_LAYOUT_NO_LIMITS
                     )
-
             except Exception as e:
                 print(f"Fullscreen error: {e}")
 
@@ -200,7 +205,6 @@ if AndroidAvailable:
                 wv.setFocusable(True)
                 wv.setFocusableInTouchMode(True)
 
-                # Принудительно скрываем системные бары внутри WebView
                 wv.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -212,20 +216,16 @@ if AndroidAvailable:
                 )
                 wv.clearFocus()
                 wv.setWebViewClient(WebViewClient())
-
-                # Загружаем HTML
                 wv.loadDataWithBaseURL('http://localhost:5000/',
                                         self.html_content,
                                         'text/html', 'UTF-8', None)
 
-                # Параметры layout: растягиваем на весь экран
                 params = ViewGroupLayoutParams(
                     ViewGroupLayoutParams.MATCH_PARENT,
                     ViewGroupLayoutParams.MATCH_PARENT
                 )
                 activity.addContentView(wv, params)
                 webview_ref['view'] = wv
-
             except Exception as e:
                 print(f"Error adding WebView: {e}")
 
@@ -261,7 +261,6 @@ class TestApp(App):
         if not AndroidAvailable:
             return
         try:
-            # Устанавливаем портретную ориентацию
             activity = PythonActivity.mActivity
             if activity:
                 activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
@@ -275,6 +274,18 @@ class TestApp(App):
             if self._fs_runnable is None:
                 self._fs_runnable = FullscreenRunnable()
             PythonActivity.mActivity.runOnUiThread(self._fs_runnable)
+
+    def remove_ui_listener(self):
+        """Снимает слушатель системных UI, чтобы избежать вызовов после уничтожения."""
+        if AndroidAvailable and PythonActivity.mActivity:
+            try:
+                window = PythonActivity.mActivity.getWindow()
+                if window:
+                    decorView = window.getDecorView()
+                    decorView.setOnSystemUiVisibilityChangeListener(None)
+            except Exception as e:
+                print(f"Remove listener error: {e}")
+        webview_ref['listener'] = None
 
     def start_flask(self):
         if not self.flask_thread or not self.flask_thread.is_alive():
@@ -336,8 +347,6 @@ class TestApp(App):
             return
         print("App resumed - reapplying fullscreen")
         Clock.unschedule(self.set_fullscreen)
-
-        # Многократное применение для Redmi
         intervals = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0]
         for interval in intervals:
             Clock.schedule_once(lambda dt: self.set_fullscreen(), interval)
@@ -353,12 +362,14 @@ class TestApp(App):
 
     def on_pause(self):
         if AndroidAvailable:
+            # Снимаем слушатель, чтобы он не вызывался после уничтожения
+            self.remove_ui_listener()
             Clock.unschedule(self.set_fullscreen)
         return True
 
     def on_stop(self):
         if AndroidAvailable:
-            webview_ref['listener'] = None
+            self.remove_ui_listener()
             PythonActivity.mActivity.runOnUiThread(_RemoveWebViewRunnable())
 
 if __name__ == '__main__':
