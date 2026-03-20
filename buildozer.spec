@@ -42,7 +42,7 @@ android.manifest_application_attributes = android:networkSecurityConfig="@xml/ne
 # иное
 log_level = 2
 
-android.orientation = portrait
+android.orientation = landscape
 
 
 
