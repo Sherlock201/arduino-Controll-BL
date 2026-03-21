@@ -264,55 +264,25 @@
 
   <script>
     
-    window.lastL = 0;
+    // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
+	window.lastL = 0;
 	window.lastR = 0;
-    (async function(){
-      let device, server, txChar, rxChar;
 
-      // UUID сервис/характеристики — часто у HM-10: FFE0 / FFE1
-      const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
-      const TX_CHAR_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb'; // писать сюда (назвал txChar)
-      // Некоторые модули используют другие UUID — если не найдёт, используйте acceptAllDevices:true
-
-      async function connect() {
-    	// Вместо navigator.bluetooth просто дергаем наш сервер
-    	fetch('/bt_connect');
+	// 2. Глобальная функция отправки (доступна везде)
+	async function sendLine(line) {
+  	   console.log("Sending:", line);
+ 	   fetch(`/send?cmd=${encodeURIComponent(line)}`)
+ 	       .catch(err => console.log("Flask/Python not ready"));
 	}
-    
-      function onDisconnected() {
-        console.log('BLE disconnected');
-        // можно попытаться переподключиться
-      }
-    
-      function onRx(e) {
-        const value = new TextDecoder().decode(e.target.value);
-        console.log('RX:', value);
-        // сюда можно обновлять UI, если Arduino ответит чем-то
-      }
-    
-      async function sendLine(line) {
-      	// Просто отправляем GET запрос на локальный сервер Flask в Python
-    	fetch(`/send?cmd=${encodeURIComponent(line)}`)
-      		.catch(err => console.log("Flask not ready yet"));
-		}
-    
-      // expose to console for testing
-      window.bleController = { connect, sendLine };
-    
-      // пример: подключаемся при нажатии кнопки (вы сами решите, куда вызывать)
-      document.getElementById('btn1').addEventListener('click', async ()=>{
-        if(!txChar) await connect();
-        // отправим пример команды (левый джойстик)
-        const v = document.getElementById('value-top').textContent.replace('Y: ',''); // пример
-        // преобразуйте в желаемый формат: "LY:20\n"
-        await sendLine('LY:20\n');
-      });
-    
-    })();
 
-
-    document.getElementById('btn7').onclick = () => fetch('/bt_connect');
+	// 3. Привязка системных кнопок
+	document.getElementById('btn7').onclick = () => fetch('/bt_connect');
 	document.getElementById('btn6').onclick = () => fetch('/bt_disconnect');
+
+	// 4. Логика кнопок A, B, C (btn1, 2, 3)
+	document.getElementById('btn1').onclick = () => sendLine('A\n');
+	document.getElementById('btn2').onclick = () => sendLine('B\n');
+	document.getElementById('btn3').onclick = () => sendLine('C\n');
 
 
     document.addEventListener('touchmove', function(e) {
@@ -331,6 +301,10 @@
         body.classList.remove('bg-a');
         body.classList.add('bg-b');
     });
+
+	document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
+    document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
+    document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
 
     (function(){
       const joysticks = [
@@ -510,10 +484,6 @@
         resetKnob();
         window.addEventListener('resize', ()=>{ resetKnob(); });
       }
-
-      document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
-      document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
-      document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
 
     })();
   </script>
