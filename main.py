@@ -224,25 +224,40 @@ class TestApp(App):
 
         PythonActivity.mActivity.runOnUiThread(AddWebView())
 
+    # --- Методы управления Bluetooth ---
+    
     def show_device_selector(self):
-        if not AndroidAvailable: return
+        if not AndroidAvailable: 
+            print("Bluetooth доступен только на Android")
+            return
         
-        # Получаем список сопряженных устройств через Java
-        BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
-        adapter = BluetoothAdapter.getDefaultAdapter()
-        paired_devices = adapter.getBondedDevices().toArray()
-        
-        device_dict = {}
-        for d in paired_devices:
-            device_dict[d.getName()] = d.getAddress()
+        try:
+            BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+            adapter = BluetoothAdapter.getDefaultAdapter()
             
-        content = DeviceSelector(device_dict, self.connect_to_addr)
-        self.popup = Popup(title="Выберите HC-06", content=content, size_hint=(0.8, 0.8))
-        self.popup.open()
+            if not adapter.isEnabled():
+                self.update_status_js("Включите Bluetooth!")
+                return
+
+            paired_devices = adapter.getBondedDevices().toArray()
+            device_dict = {}
+            for d in paired_devices:
+                device_dict[d.getName()] = d.getAddress()
+                
+            if not device_dict:
+                self.update_status_js("Нет сопряженных устройств")
+                return
+
+            content = DeviceSelector(device_dict, self.connect_to_addr)
+            self.popup = Popup(title="Выберите устройство", content=content, size_hint=(0.9, 0.9))
+            self.popup.open()
+        except Exception as e:
+            print(f"Selector error: {e}")
 
     def connect_to_addr(self, address):
-        self.popup.dismiss()
-        # Тут запускаем поток подключения (Socket RFCOMM)
+        if hasattr(self, 'popup'):
+            self.popup.dismiss()
+        self.update_status_js("Подключение...")
         threading.Thread(target=self._bt_thread, args=(address,), daemon=True).start()
 
     def _bt_thread(self, address):
@@ -251,24 +266,47 @@ class TestApp(App):
             UUID = autoclass('java.util.UUID')
             adapter = BluetoothAdapter.getDefaultAdapter()
             device = adapter.getRemoteDevice(address)
-            # Стандартный UUID для HC-05/06 (Serial Port Profile)
+            
+            # Стандартный UUID для HC-06
             uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            
             self.socket = device.createRfcommSocketToServiceRecord(uuid)
             self.socket.connect()
             self.ostream = self.socket.getOutputStream()
             self.update_status_js("Подключено")
         except Exception as e:
-            self.update_status_js(f"Ошибка: {str(e)}")
+            self.update_status_js(f"Ошибка: {str(e)[:20]}")
+            self.socket = None
 
-    def update_status_js(self, text):
-        # Метод для обновления текста внутри WebView из Python
-        if webview_ref['view']:
-            js = f"document.querySelector('.status').textContent = '{text}';"
-            PythonActivity.mActivity.runOnUiThread(lambda: webview_ref['view'].evaluateJavascript(js, None))
+    def disconnect_bt(self):
+        try:
+            if self.socket:
+                self.socket.close()
+            self.socket = None
+            self.ostream = None
+            self.update_status_js("Отключено")
+        except:
+            pass
 
     def send_to_bt(self, data):
-        if hasattr(self, 'ostream') and self.ostream:
-            self.ostream.write(data.encode())
+        # Пишем в поток, если сокет живой
+        if self.ostream:
+            try:
+                self.ostream.write(data.encode())
+                self.ostream.flush()
+            except:
+                self.update_status_js("Связь потеряна")
+                self.socket = None
+
+    def update_status_js(self, text):
+        if webview_ref['view']:
+            # evaluateJavascript требует запуска в UI потоке Android
+            def run_js():
+                webview_ref['view'].evaluateJavascript(
+                    f"document.querySelector('.status').textContent = '{text}';", 
+                    None
+                )
+            PythonActivity.mActivity.runOnUiThread(run_js)
 
 # --------------------
 
