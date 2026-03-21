@@ -38,7 +38,8 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,AC
 # android.manifest_attributes = android:usesCleartextTraffic="true"
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
-android.manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config"
+# android.manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config"
+android.manifest_application_attributes = android:usesCleartextTraffic="true"
 
 # иное
 log_level = 2
