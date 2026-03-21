@@ -2,11 +2,17 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
 
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.recycleview import RecycleView
+from kivy.uix.popup import Popup
+
 import threading
 import os
 
 # Flask
 from flask import Flask, send_from_directory, render_template_string
+from flask import request, jsonify
 
 # pyjnius
 try:
@@ -32,6 +38,27 @@ def index():
 @app.route('/<path:filename>')
 def static_files(filename):
     return send_from_directory(www_dir, filename)
+
+@app.route('/bt_connect')
+def bt_connect():
+    # Сигнализируем Kivy открыть список устройств
+    app_instance = App.get_running_app()
+    Clock.schedule_once(lambda dt: app_instance.show_device_selector())
+    return jsonify({"status": "processing"})
+
+@app.route('/bt_disconnect')
+def bt_disconnect():
+    app_instance = App.get_running_app()
+    Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
+    return jsonify({"status": "disconnected"})
+
+@app.route('/send')
+def send_command():
+    cmd = request.args.get('cmd', '')
+    app_instance = App.get_running_app()
+    # Отправляем данные в поток Bluetooth
+    app_instance.send_to_bt(cmd)
+    return "ok"
 
 def run_flask():
     app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
@@ -138,6 +165,14 @@ if AndroidAvailable:
                 print("WebView error:", e)
 
 # -------------------- App --------------------
+class DeviceSelector(BoxLayout):
+    def __init__(self, devices, callback, **kwargs):
+        super().__init__(orientation='vertical', **kwargs)
+        self.callback = callback
+        for name, address in devices.items():
+            btn = Button(text=f"{name}\n{address}", size_hint_y=None, height=100)
+            btn.bind(on_release=lambda x, addr=address: self.callback(addr))
+            self.add_widget(btn)
 
 class TestApp(App):
 
@@ -188,6 +223,52 @@ class TestApp(App):
             return
 
         PythonActivity.mActivity.runOnUiThread(AddWebView())
+
+    def show_device_selector(self):
+        if not AndroidAvailable: return
+        
+        # Получаем список сопряженных устройств через Java
+        BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+        adapter = BluetoothAdapter.getDefaultAdapter()
+        paired_devices = adapter.getBondedDevices().toArray()
+        
+        device_dict = {}
+        for d in paired_devices:
+            device_dict[d.getName()] = d.getAddress()
+            
+        content = DeviceSelector(device_dict, self.connect_to_addr)
+        self.popup = Popup(title="Выберите HC-06", content=content, size_hint=(0.8, 0.8))
+        self.popup.open()
+
+    def connect_to_addr(self, address):
+        self.popup.dismiss()
+        # Тут запускаем поток подключения (Socket RFCOMM)
+        threading.Thread(target=self._bt_thread, args=(address,), daemon=True).start()
+
+    def _bt_thread(self, address):
+        try:
+            BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+            UUID = autoclass('java.util.UUID')
+            adapter = BluetoothAdapter.getDefaultAdapter()
+            device = adapter.getRemoteDevice(address)
+            # Стандартный UUID для HC-05/06 (Serial Port Profile)
+            uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            self.socket = device.createRfcommSocketToServiceRecord(uuid)
+            self.socket.connect()
+            self.ostream = self.socket.getOutputStream()
+            self.update_status_js("Подключено")
+        except Exception as e:
+            self.update_status_js(f"Ошибка: {str(e)}")
+
+    def update_status_js(self, text):
+        # Метод для обновления текста внутри WebView из Python
+        if webview_ref['view']:
+            js = f"document.querySelector('.status').textContent = '{text}';"
+            PythonActivity.mActivity.runOnUiThread(lambda: webview_ref['view'].evaluateJavascript(js, None))
+
+    def send_to_bt(self, data):
+        if hasattr(self, 'ostream') and self.ostream:
+            self.ostream.write(data.encode())
 
 # --------------------
 
