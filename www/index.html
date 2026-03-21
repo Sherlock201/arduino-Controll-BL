@@ -264,7 +264,8 @@
 
   <script>
     
-    
+    window.lastL = 0;
+	window.lastR = 0;
     (async function(){
       let device, server, txChar, rxChar;
 
@@ -274,37 +275,9 @@
       // Некоторые модули используют другие UUID — если не найдёт, используйте acceptAllDevices:true
 
       async function connect() {
-        try {
-          // Попробуйте фильтр по имени (HM, HMSoft) — если не работает, замените на acceptAllDevices:true
-          device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'HM' }], // или { name: 'HMSoft' } или уберите фильтр
-            optionalServices: [SERVICE_UUID]
-          });
-        
-          device.addEventListener('gattserverdisconnected', onDisconnected);
-          server = await device.gatt.connect();
-          const service = await server.getPrimaryService(SERVICE_UUID);
-          txChar = await service.getCharacteristic(TX_CHAR_UUID);
-        
-          // Если модуль поддерживает уведомления (иногда RX/TX перепутаны), подписываемся
-          try {
-            rxChar = txChar; // у HM-10 часто только одна характеристика и она уведомляет и принимает
-            await rxChar.startNotifications();
-            rxChar.addEventListener('characteristicvaluechanged', onRx);
-          } catch(e) {
-            console.log('Нет уведомлений или другая конфигурация', e);
-          }
-        
-          console.log('HM-10 connected');
-
-          document.querySelector(".status").textContent = "Подключено";
-
-        } catch (err) {
-          console.error('Connect failed', err);
-          throw err;
-          document.querySelector(".status").textContent = err.message || err;
-        }
-      }
+    	// Вместо navigator.bluetooth просто дергаем наш сервер
+    	fetch('/bt_connect');
+	}
     
       function onDisconnected() {
         console.log('BLE disconnected');
@@ -318,12 +291,10 @@
       }
     
       async function sendLine(line) {
-        if(!txChar) throw new Error('Not connected');
-        if(!line.endsWith('\n')) line += '\n';
-        const data = new TextEncoder().encode(line);
-        // HM-10 может принимать ограниченные чанки (20 байт). Если длинные строки — разбивайте.
-        await txChar.writeValue(data);
-      }
+      	// Просто отправляем GET запрос на локальный сервер Flask в Python
+    	fetch(`/send?cmd=${encodeURIComponent(line)}`)
+      		.catch(err => console.log("Flask not ready yet"));
+		}
     
       // expose to console for testing
       window.bleController = { connect, sendLine };
@@ -340,14 +311,8 @@
     })();
 
 
-    // Используйте её для btn7:
-    document.getElementById('btn7').addEventListener('click', async function(e) {
-      try {
-        await window.bleController.connect();
-      } catch(err) {
-        console.error('Connection failed:', err);
-      }
-    });
+    document.getElementById('btn7').onclick = () => fetch('/bt_connect');
+	document.getElementById('btn6').onclick = () => fetch('/bt_disconnect');
 
 
     document.addEventListener('touchmove', function(e) {
@@ -390,15 +355,35 @@
         let touchId = null; // for touch fallback when pointer events are not used
 
         function setKnobOffset(localDy, withTransition=false){
-          const {maxOffset} = getParams();
-          const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
-          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
-          knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
-          const normalized = Math.round((-constrained / maxOffset) * 100);
-          const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
-          valueEl.textContent = `Y: ${shown}`;
-          knob.setAttribute('aria-valuenow', normalized);
-        }
+  			const {maxOffset} = getParams();
+ 			const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
+  
+  			knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+  			knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
+  
+		 	const normalized = Math.round((-constrained / maxOffset) * 100);
+  			const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
+  			valueEl.textContent = `Y: ${shown}`;
+  			knob.setAttribute('aria-valuenow', normalized);
+
+
+  			// Определяем какой это джойстик (левый или правый)
+  			const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
+  
+  			// Вызываем функцию отправки через fetch (которую мы переписали под Flask)
+  			// Мы добавили проверку, чтобы не слать то же самое число дважды
+  			if (prefix === 'L') {
+      			if (window.lastL !== normalized) {
+          			sendLine(`L${normalized}\n`);
+          			window.lastL = normalized;
+      			}
+  			} else {
+      			if (window.lastR !== normalized) {
+          			sendLine(`R${normalized}\n`);
+          			window.lastR = normalized;
+      			}
+  			}
+		}
 
         function resetKnob(){ setKnobOffset(0, true); }
 
