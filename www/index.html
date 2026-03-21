@@ -263,21 +263,8 @@
   </div>
 
   <script>
-	  fetch('/ping')
-  .then(r => r.text())
-  .then(t => console.log(t))
-  .catch(err => console.log(err));
-
-	fetch('http://127.0.0.1:5000/ping')
-  .then(r => r.text())
-  .then(t => console.log("PING:", t))
-  .catch(err => console.log("PING ERROR:", err));
-
-	  console.log("origin =", location.origin);
-fetch(location.origin + '/ping')
-  .then(r => r.text())
-  .then(t => console.log("PING:", t))
-  .catch(err => console.log("PING ERROR:", err));
+	const BASE = "http://{{ SERVER_IP }}:5000";
+	fetch(`${BASE}/ping`)
     
     // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
 	window.lastL = 0;
@@ -285,7 +272,7 @@ fetch(location.origin + '/ping')
 
 	// 2. Глобальная функция отправки (доступна везде)
 	function sendLine(line) {
-  	fetch(`/send?cmd=${encodeURIComponent(line)}`)
+  	fetch(`${BASE}/send?cmd=${encodeURIComponent(line)}`)
     	.then(r => r.json())
     	.then(data => console.log("server:", data))
     	.catch(err => console.log("Flask error:", err));
@@ -293,14 +280,14 @@ fetch(location.origin + '/ping')
 
 	// 3. Привязка системных кнопок
 	document.getElementById('btn7').onclick = () => {
-  	fetch('/bt_connect')
+  	fetch(`${BASE}/bt_connect`)
     	.then(r => r.json())
     	.then(data => console.log(data))
     	.catch(err => console.log(err));
 	};
 
 	document.getElementById('btn6').onclick = () => {
-  	fetch('/bt_disconnect')
+  	fetch(`${BASE}/bt_disconnect`)
     	.then(r => r.json())
     	.then(data => console.log(data))
     	.catch(err => console.log(err));
