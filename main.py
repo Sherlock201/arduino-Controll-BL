@@ -41,7 +41,6 @@ def static_files(filename):
 
 @app.route('/bt_connect')
 def bt_connect():
-    # Сигнализируем Kivy открыть список устройств
     app_instance = App.get_running_app()
     Clock.schedule_once(lambda dt: app_instance.show_device_selector())
     return jsonify({"status": "processing"})
@@ -56,9 +55,8 @@ def bt_disconnect():
 def send_command():
     cmd = request.args.get('cmd', '')
     app_instance = App.get_running_app()
-    # Отправляем данные в поток Bluetooth
     app_instance.send_to_bt(cmd)
-    return "ok"
+    return jsonify({"status": "ok", "cmd": cmd})
 
 def run_flask():
     # threaded=True обязателен, чтобы не блокировать запросы
