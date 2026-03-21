@@ -61,7 +61,8 @@ def send_command():
     return "ok"
 
 def run_flask():
-    app.run(host='0.0.0.0', port=5000, threaded=True, debug=False)
+    # threaded=True обязателен, чтобы не блокировать запросы
+    app.run(host='127.0.0.1', port=5000, threaded=True, debug=False)
 
 # -------------------- Android --------------------
 
@@ -126,6 +127,7 @@ if AndroidAvailable:
                 settings.setDomStorageEnabled(True)
                 settings.setAllowFileAccess(True)
                 settings.setAllowContentAccess(True)
+                settings.setMixedContentMode(0)
 
                 settings.setUseWideViewPort(True)
                 settings.setLoadWithOverviewMode(True)
@@ -185,7 +187,7 @@ class TestApp(App):
         self.start_flask()
 
         # Ждём пока всё поднимется
-        Clock.schedule_once(self.setup_android, 2.5)
+        Clock.schedule_once(self.setup_android, 5.0)
 
     def setup_android(self, dt):
         if not AndroidAvailable:
