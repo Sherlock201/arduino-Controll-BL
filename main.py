@@ -88,6 +88,8 @@ def send_command():
 
 def run_flask():
     print("START FLASK ON 0.0.0.0:5000")
+    ip = get_local_ip()
+    print("Определенный ip:", ip)
     print(app.url_map)
     app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
 
@@ -171,8 +173,10 @@ if AndroidAvailable:
                 except:
                     html = "<h1>index.html not found</h1>"
 
+                ip = get_local_ip()  # получаем реальный IP (192.168.100.6)
+                base_url = f"http://{ip}:5000/"
                 wv.loadDataWithBaseURL(
-                    'http://localhost:5000/',
+                    base_url,
                     html,
                     'text/html',
                     'UTF-8',
