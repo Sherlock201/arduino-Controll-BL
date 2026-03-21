@@ -263,6 +263,10 @@
   </div>
 
   <script>
+	  fetch('/ping')
+  .then(r => r.text())
+  .then(t => console.log(t))
+  .catch(err => console.log(err));
     
     // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
 	window.lastL = 0;
@@ -270,17 +274,25 @@
 
 	// 2. Глобальная функция отправки (доступна везде)
 	function sendLine(line) {
-  		fetch(`/send?cmd=${encodeURIComponent(line)}`)
+  	fetch(`/send?cmd=${encodeURIComponent(line)}`)
+    	.then(r => r.json())
+    	.then(data => console.log("server:", data))
     	.catch(err => console.log("Flask error:", err));
 	}
 
 	// 3. Привязка системных кнопок
 	document.getElementById('btn7').onclick = () => {
-  		fetch('/bt_connect').catch(err => console.log(err));
+  	fetch('/bt_connect')
+    	.then(r => r.json())
+    	.then(data => console.log(data))
+    	.catch(err => console.log(err));
 	};
 
 	document.getElementById('btn6').onclick = () => {
-  		fetch('/bt_disconnect').catch(err => console.log(err));
+  	fetch('/bt_disconnect')
+    	.then(r => r.json())
+    	.then(data => console.log(data))
+    	.catch(err => console.log(err));
 	};
 
 	// 4. Логика кнопок A, B, C (btn1, 2, 3)
