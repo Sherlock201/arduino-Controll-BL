@@ -269,14 +269,19 @@
 	window.lastR = 0;
 
 	// 2. Глобальная функция отправки (доступна везде)
-	async function sendLine(line) {
+	function sendLine(line) {
   		fetch(`/send?cmd=${encodeURIComponent(line)}`)
     	.catch(err => console.log("Flask error:", err));
 	}
 
 	// 3. Привязка системных кнопок
-	document.getElementById('btn7').onclick = () => fetch('/bt_connect');
-	document.getElementById('btn6').onclick = () => fetch('/bt_disconnect');
+	document.getElementById('btn7').onclick = () => {
+  		fetch('/bt_connect').catch(err => console.log(err));
+	};
+
+	document.getElementById('btn6').onclick = () => {
+  		fetch('/bt_disconnect').catch(err => console.log(err));
+	};
 
 	// 4. Логика кнопок A, B, C (btn1, 2, 3)
 	document.getElementById('btn1').onclick = () => sendLine('A\n');
