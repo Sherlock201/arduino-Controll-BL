@@ -173,15 +173,18 @@ if AndroidAvailable:
                 except:
                     html = "<h1>index.html not found</h1>"
 
-                ip = get_local_ip()  # получаем реальный IP (192.168.100.6)
-                base_url = f"http://{ip}:5000/"
-                wv.loadDataWithBaseURL(
-                    base_url,
-                    html,
-                    'text/html',
-                    'UTF-8',
-                    None
-                )
+                #ip = get_local_ip()  # получаем реальный IP (192.168.100.6)
+                #base_url = f"http://{ip}:5000/"
+                #wv.loadDataWithBaseURL(
+                #    base_url,
+                #    html,
+                #    'text/html',
+                #    'UTF-8',
+                #    None
+                #)
+                ip = get_local_ip()
+                url = f"http://{ip}:5000/"
+                wv.loadUrl(url)
 
                 wv.setWebViewClient(WebViewClient())
 
