@@ -267,7 +267,10 @@
 	fetch(`${BASE}/ping`);
 	  
 	console.log("Second try:");
-	fetch('/ping')
+	fetch('/ping').then(r => r.json())
+    	.then(data => console.log("server:", data))
+    	.catch(err => console.log("Flask error:", err));
+	}
 	console.log("origin", window.location.origin);
     
     // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
