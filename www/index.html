@@ -10,7 +10,7 @@
     }
 	  :root {
         /*Джойстик всегда будет занимать 70% высоты экрана, но не больше 250px */
-      --size: clamp(200px, 40vw, 250px);
+      --size: clamp(200px, 40vw, 245px);
       --knob: calc(var(--size) * 0.3);
     }
     
@@ -27,9 +27,14 @@
 
     /* Корневой контейнер: отступ сверху/снизу 15px, растянут по ширине */
     .container{
-      position:absolute;inset: 2vh;
+      position:absolute;/*inset: 2vw;*/
       display:flex;gap:3vw;align-items:stretch;justify-content:space-between; overflow: hidden;
       flex-direction: column;
+      height: 100%;
+      width: 100%;
+      padding: clamp(12px, 2.5vmin, 24px);
+      padding-top: max(clamp(12px, 2.5vmin, 24px), env(safe-area-inset-top));
+      padding-bottom: max(clamp(12px, 2.5vmin, 24px), env(safe-area-inset-bottom));
     }
     /* Левая колонка: джойстики и вертикальные кнопки между ними width:calc(var(--size) + 20px); */
     .col-left{display:flex;flex-direction:row;align-items:center;gap:5px;width: 100%;align-items: flex-end;justify-content: space-between;}
