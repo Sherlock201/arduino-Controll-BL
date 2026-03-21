@@ -272,6 +272,12 @@
   .then(r => r.text())
   .then(t => console.log("PING:", t))
   .catch(err => console.log("PING ERROR:", err));
+
+	  console.log("origin =", location.origin);
+fetch(location.origin + '/ping')
+  .then(r => r.text())
+  .then(t => console.log("PING:", t))
+  .catch(err => console.log("PING ERROR:", err));
     
     // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
 	window.lastL = 0;
