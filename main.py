@@ -65,13 +65,9 @@ def send_command():
     return jsonify({"status": "ok", "cmd": cmd})
 
 def run_flask():
-    app.run(
-        host='0.0.0.0',
-        port=5000,
-        threaded=True,
-        debug=False,
-        use_reloader=False
-    )
+    print("START FLASK ON 0.0.0.0:5000")
+    print(app.url_map)
+    app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
 
 # -------------------- Android --------------------
 
