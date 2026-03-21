@@ -264,7 +264,11 @@
 
   <script>
 	const BASE = "http://{{ SERVER_IP }}:5000";
-	fetch(`${BASE}/ping`)
+	fetch(`${BASE}/ping`);
+	  
+	console.log("Second try:");
+	fetch('/ping')
+	console.log("origin", window.location.origin);
     
     // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
 	window.lastL = 0;
