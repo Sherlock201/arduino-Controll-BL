@@ -54,13 +54,19 @@ def bt_disconnect():
 @app.route('/send')
 def send_command():
     cmd = request.args.get('cmd', '')
+    print("SEND HIT:", cmd)  # чтобы увидеть, доходит ли запрос вообще
     app_instance = App.get_running_app()
     app_instance.send_to_bt(cmd)
     return jsonify({"status": "ok", "cmd": cmd})
 
 def run_flask():
-    # threaded=True обязателен, чтобы не блокировать запросы
-    app.run(host='127.0.0.1', port=5000, threaded=True, debug=False)
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        threaded=True,
+        debug=False,
+        use_reloader=False
+    )
 
 # -------------------- Android --------------------
 
