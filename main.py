@@ -43,17 +43,18 @@ def get_local_ip():
 @app.route('/')
 def index():
     index_path = os.path.join(www_dir, 'index.html')
-    if os.path.exists(index_path):
-        with open(index_path, 'r', encoding='utf-8') as f:
-            html = f.read()
+    if not os.path.exists(index_path):
+        return "<h1>No index.html</h1>"
+    with open(index_path, 'r', encoding='utf-8') as f:
+        html = f.read()
 
+    try:
         ip = get_local_ip()
-        print("Определенный ip: ")
-        print(ip)
-
+        print("Определенный ip:", ip)   # теперь будет в логах
         return render_template_string(html, SERVER_IP=ip)
-
-    return "<h1>No index.html</h1>"
+    except Exception as e:
+        print("Ошибка в index:", e)
+        return f"<h1>Error: {e}</h1>"
 
 @app.route('/<path:filename>')
 def static_files(filename):
