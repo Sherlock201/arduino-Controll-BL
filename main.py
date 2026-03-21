@@ -9,6 +9,7 @@ from kivy.uix.popup import Popup
 
 import threading
 import os
+import socket
 
 # Flask
 from flask import Flask, send_from_directory, render_template_string
@@ -27,12 +28,27 @@ except Exception as e:
 www_dir = os.path.join(os.getcwd(), 'www')
 app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
 
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  # просто для определения интерфейса
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
+
 @app.route('/')
 def index():
     index_path = os.path.join(www_dir, 'index.html')
     if os.path.exists(index_path):
         with open(index_path, 'r', encoding='utf-8') as f:
-            return render_template_string(f.read())
+            html = f.read()
+
+        ip = get_local_ip()
+
+        return render_template_string(html, SERVER_IP=ip)
+
     return "<h1>No index.html</h1>"
 
 @app.route('/<path:filename>')
