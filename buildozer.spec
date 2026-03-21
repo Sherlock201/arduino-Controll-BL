@@ -33,7 +33,7 @@ android.gradle_dependencies = androidx.core:core:1.6.0
 android.enable_androidx = True
 
 # разрешения (нужны для Bluetooth)
-android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
+android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
 # android.allow_cleartext_traffic = True
 # android.manifest_attributes = android:usesCleartextTraffic="true"
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
