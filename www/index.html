@@ -270,9 +270,8 @@
 
 	// 2. Глобальная функция отправки (доступна везде)
 	async function sendLine(line) {
-    	// Используем 127.0.0.1 вместо localhost
-    	fetch(`http://127.0.0.1{encodeURIComponent(line)}`)
-       	 .catch(err => console.log("Flask error:", err));
+  		fetch(`/send?cmd=${encodeURIComponent(line)}`)
+    	.catch(err => console.log("Flask error:", err));
 	}
 
 	// 3. Привязка системных кнопок
