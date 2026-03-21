@@ -39,6 +39,11 @@ def index():
 def static_files(filename):
     return send_from_directory(www_dir, filename)
 
+@app.route('/ping')
+def ping():
+    print("PING")
+    return "pong"
+
 @app.route('/bt_connect')
 def bt_connect():
     app_instance = App.get_running_app()
