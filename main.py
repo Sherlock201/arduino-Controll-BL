@@ -10,6 +10,7 @@ from kivy.uix.popup import Popup
 import threading
 import os
 import socket
+import netifaces
 
 # Flask
 from flask import Flask, send_from_directory, render_template_string
@@ -29,14 +30,15 @@ www_dir = os.path.join(os.getcwd(), 'www')
 app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
 
 def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))  # просто для определения интерфейса
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except:
-        return "127.0.0.1"
+    for iface in netifaces.interfaces():
+        addrs = netifaces.ifaddresses(iface)
+        if netifaces.AF_INET in addrs:
+            for addr in addrs[netifaces.AF_INET]:
+                ip = addr['addr']
+                # Пропускаем loopback и автоконфигурационные адреса
+                if ip != '127.0.0.1' and not ip.startswith('169.254'):
+                    return ip
+    return '127.0.0.1'
 
 @app.route('/')
 def index():
@@ -46,6 +48,8 @@ def index():
             html = f.read()
 
         ip = get_local_ip()
+        print("Определенный ip: ")
+        print(ip)
 
         return render_template_string(html, SERVER_IP=ip)
 
