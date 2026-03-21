@@ -63,6 +63,7 @@ def static_files(filename):
 @app.route('/ping')
 def ping():
     print("PING")
+    print("Signal ok")
     return "pong"
 
 @app.route('/bt_connect')
