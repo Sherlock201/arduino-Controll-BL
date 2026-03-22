@@ -1,7 +1,6 @@
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
-
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.recycleview import RecycleView
@@ -11,7 +10,7 @@ import threading
 import os
 import socket
 import netifaces
-
+import time
 
 # Flask
 from flask import Flask, send_from_directory, render_template_string
@@ -33,11 +32,7 @@ app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
 
 def get_local_ip():
     """Получи локальный IP в сети"""
-    import socket
-    import netifaces
-    
     try:
-        # Попробуй получить IP из активного интерфейса
         for iface in netifaces.interfaces():
             if iface.startswith('wlan') or iface.startswith('eth'):
                 addrs = netifaces.ifaddresses(iface)
@@ -45,8 +40,6 @@ def get_local_ip():
                     return addrs[netifaces.AF_INET][0]['addr']
     except:
         pass
-    
-    # Fallback
     return '127.0.0.1'
 
 @app.route('/')
@@ -59,10 +52,10 @@ def index():
 
     try:
         ip = get_local_ip()
-        print("Определенный ip:", ip)   # теперь будет в логах
+        print("[Flask] Определенный ip:", ip)
         return render_template_string(html, SERVER_IP=ip)
     except Exception as e:
-        print("Ошибка в index:", e)
+        print("[Flask] Ошибка в index:", e)
         return f"<h1>Error: {e}</h1>"
 
 @app.route('/<path:filename>')
@@ -71,8 +64,7 @@ def static_files(filename):
 
 @app.route('/ping')
 def ping():
-    print("PING")
-    print("Signal ok")
+    print("[Flask] PING received")
     return "pong"
 
 @app.route('/bt_connect')
@@ -90,7 +82,7 @@ def bt_disconnect():
 @app.route('/send')
 def send_command():
     cmd = request.args.get('cmd', '')
-    print("SEND HIT:", cmd)  # чтобы увидеть, доходит ли запрос вообще
+    print("[Flask] SEND HIT:", cmd)
     app_instance = App.get_running_app()
     app_instance.send_to_bt(cmd)
     return jsonify({"status": "ok", "cmd": cmd})
@@ -107,7 +99,7 @@ def run_flask():
             host='0.0.0.0', 
             port=5000, 
             threaded=True, 
-            debug=False,  # Выключи debug mode в продакшене
+            debug=False,
             use_reloader=False
         )
     except Exception as e:
@@ -117,7 +109,7 @@ def run_flask():
 
 # -------------------- Android --------------------
 
-webview_ref = {'view': None}
+webview_ref = {'view': None, 'ready': False}
 
 if AndroidAvailable:
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
@@ -156,16 +148,18 @@ if AndroidAvailable:
                 decor.setSystemUiVisibility(ui)
 
             except Exception as e:
-                print("Fullscreen error:", e)
+                print("[WebView] Fullscreen error:", e)
 
     class AddWebView(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
 
         def __init__(self):
             super().__init__()
+            print("[WebView] AddWebView инициализирован")
 
         @java_method('()V')
         def run(self):
+            print("[WebView] run() вызван в UI потоке")
             try:
                 activity = PythonActivity.mActivity
                 if not activity:
@@ -174,6 +168,7 @@ if AndroidAvailable:
 
                 print("[WebView] Creating WebView instance...")
                 wv = WebView(activity)
+                print("[WebView] WebView created")
 
                 settings = wv.getSettings()
                 settings.setJavaScriptEnabled(True)
@@ -188,30 +183,28 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # Получи IP
                 ip = get_local_ip()
                 url = f"http://{ip}:5000/"
-            
+                
                 print(f"[WebView] Loading URL: {url}")
 
-                # Загрузи URL
                 wv.loadUrl(url)
+                print("[WebView] URL loaded")
 
-                # Добавь WebViewClient для ловли ошибок
-                class DebugWebViewClient(WebViewClient):
-                    pass
-            
-                wv.setWebViewClient(DebugWebViewClient())
+                wv.setWebViewClient(WebViewClient())
 
-                # Добавь WebView в Activity
                 params = LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     LayoutParams.MATCH_PARENT
                 )
 
+                print("[WebView] Adding to activity...")
                 activity.addContentView(wv, params)
+                print("[WebView] Added successfully")
+
                 webview_ref['view'] = wv
-                print("[WebView] WebView added to activity successfully!")
+                webview_ref['ready'] = True
+                print("[WebView] WebView fully initialized!")
 
             except Exception as e:
                 print(f"[WebView] ERROR: {e}")
@@ -234,7 +227,6 @@ class TestApp(App):
         self.flask_thread = None
         self.fs = None
         
-        # Создай видимый контейнер с загрузочным сообщением
         self.root_box = BoxLayout(orientation='vertical')
         self.status_label = Button(
             text='Загрузка...\nПожалуйста подождите',
@@ -245,13 +237,14 @@ class TestApp(App):
         return self.root_box
 
     def on_start(self):
-        # Запусти всё сразу, без больших задержек
+        print("[Kivy] on_start вызван")
         self.start_flask()
         
-        # Короче задержка для поднятия Flask
+        # Дай Flask время поднять сервер
         Clock.schedule_once(self.setup_android, 2.0)
 
     def setup_android(self, dt):
+        print("[Kivy] setup_android вызван")
         if not AndroidAvailable:
             self.status_label.text = 'Ошибка: нет Android'
             return
@@ -264,12 +257,13 @@ class TestApp(App):
                 activity.setRequestedOrientation(
                     ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 )
+                print("[Kivy] Orientation set to landscape")
 
-            # Открой WebView почти сразу
+            # Открой WebView
             Clock.schedule_once(self.open_webview, 0.5)
 
         except Exception as e:
-            print(f"Setup error: {e}")
+            print(f"[Kivy] Setup error: {e}")
             self.status_label.text = f'Setup ошибка: {e}'
             import traceback
             traceback.print_exc()
@@ -278,25 +272,37 @@ class TestApp(App):
         if AndroidAvailable and PythonActivity.mActivity:
             if not self.fs:
                 self.fs = FullscreenRunnable()
+            print("[Kivy] Setting fullscreen...")
             PythonActivity.mActivity.runOnUiThread(self.fs)
 
     def start_flask(self):
         if not self.flask_thread:
+            print("[Kivy] Starting Flask thread...")
             t = threading.Thread(target=run_flask, daemon=True)
             t.start()
             self.flask_thread = t
             print("[Kivy] Flask thread started")
 
     def open_webview(self, dt):
+        print("[Kivy] open_webview вызван")
         if not AndroidAvailable:
+            print("[Kivy] Android not available")
             return
 
         try:
-            print("[Kivy] Opening WebView...")
-            self.status_label.text = 'Открываю интерфейс...'
-            run_on_ui_thread(AddWebView().run)
-            # Обнови статус через 1 сек
+            print("[Kivy] Creating AddWebView instance...")
+            webview_runnable = AddWebView()
+            print("[Kivy] Scheduling on UI thread...")
+            
+            # КРИТИЧНО: это должно быть в UI потоке
+            PythonActivity.mActivity.runOnUiThread(webview_runnable)
+            print("[Kivy] Runnable scheduled")
+            
+            self.status_label.text = 'Инициализация интерфейса...'
+            
+            # Проверь через короткий промежуток
             Clock.schedule_once(self.check_webview_loaded, 1.0)
+            
         except Exception as e:
             print(f"[Kivy] WebView open error: {e}")
             self.status_label.text = f'WebView error: {e}'
@@ -305,19 +311,23 @@ class TestApp(App):
 
     def check_webview_loaded(self, dt):
         """Проверь загрузился ли WebView"""
-        if webview_ref['view']:
+        print(f"[Kivy] check_webview_loaded: ready={webview_ref['ready']}, view={webview_ref['view'] is not None}")
+        
+        if webview_ref['ready'] and webview_ref['view']:
             print("[Kivy] WebView loaded successfully!")
-            # Скрой загрузочный экран
             self.status_label.text = ''
             self.status_label.size_hint = (0, 0)
         else:
-            print("[Kivy] WebView not ready yet")
+            print("[Kivy] WebView not ready yet, retrying...")
             self.status_label.text = 'WebView не готов...'
+            # Повтори проверку
+            Clock.schedule_once(self.check_webview_loaded, 1.0)
+
     # --- Методы управления Bluetooth ---
     
     def show_device_selector(self):
         if not AndroidAvailable: 
-            print("Bluetooth доступен только на Android")
+            print("[Kivy] Bluetooth доступен только на Android")
             return
         
         try:
@@ -341,7 +351,7 @@ class TestApp(App):
             self.popup = Popup(title="Выберите устройство", content=content, size_hint=(0.9, 0.9))
             self.popup.open()
         except Exception as e:
-            print(f"Selector error: {e}")
+            print(f"[Kivy] Selector error: {e}")
 
     def connect_to_addr(self, address):
         if hasattr(self, 'popup'):
@@ -356,7 +366,6 @@ class TestApp(App):
             adapter = BluetoothAdapter.getDefaultAdapter()
             device = adapter.getRemoteDevice(address)
             
-            # Стандартный UUID для HC-06
             uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
             
             self.socket = device.createRfcommSocketToServiceRecord(uuid)
@@ -378,7 +387,6 @@ class TestApp(App):
             pass
 
     def send_to_bt(self, data):
-        # Пишем в поток, если сокет живой
         if self.ostream:
             try:
                 self.ostream.write(data.encode())
@@ -389,7 +397,6 @@ class TestApp(App):
 
     def update_status_js(self, text):
         if webview_ref['view']:
-            # evaluateJavascript требует запуска в UI потоке Android
             def run_js():
                 webview_ref['view'].evaluateJavascript(
                     f"document.querySelector('.status').textContent = '{text}';", 
