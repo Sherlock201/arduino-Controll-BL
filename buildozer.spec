@@ -34,12 +34,11 @@ android.enable_androidx = True
 
 # разрешения (нужны для Bluetooth)
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
-# android.allow_cleartext_traffic = True
-# android.manifest_attributes = android:usesCleartextTraffic="true"
-# android.manifest_application_attributes = android:usesCleartextTraffic="true"
+
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
 #android.manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config"
-android.manifest.uses_cleartext_traffic = True
+
+android.manifest_application_attributes = android:usesCleartextTraffic="true"
 android.gradle_manifest = manifest/AndroidManifest.xml
 
 # иное
