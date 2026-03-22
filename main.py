@@ -96,11 +96,24 @@ def send_command():
     return jsonify({"status": "ok", "cmd": cmd})
 
 def run_flask():
-    print("START FLASK ON 0.0.0.0:5000")
+    print("[Flask] Начинаю запуск...")
+    print("[Flask] START FLASK ON 0.0.0.0:5000")
     ip = get_local_ip()
-    print("Определенный ip:", ip)
-    print(app.url_map)
-    app.run(host='0.0.0.0', port=5000, threaded=True, debug=True, use_reloader=False)
+    print(f"[Flask] Определенный ip: {ip}")
+    print(f"[Flask] URL маршруты:\n{app.url_map}")
+    
+    try:
+        app.run(
+            host='0.0.0.0', 
+            port=5000, 
+            threaded=True, 
+            debug=False,  # Выключи debug mode в продакшене
+            use_reloader=False
+        )
+    except Exception as e:
+        print(f"[Flask] ОШИБКА при запуске: {e}")
+        import traceback
+        traceback.print_exc()
 
 # -------------------- Android --------------------
 
@@ -156,9 +169,10 @@ if AndroidAvailable:
             try:
                 activity = PythonActivity.mActivity
                 if not activity:
-                    print("No activity")
+                    print("[WebView] No activity found!")
                     return
 
+                print("[WebView] Creating WebView instance...")
                 wv = WebView(activity)
 
                 settings = wv.getSettings()
@@ -166,9 +180,7 @@ if AndroidAvailable:
                 settings.setDomStorageEnabled(True)
                 settings.setAllowFileAccess(True)
                 settings.setAllowContentAccess(True)
-                # ВАЖНО: Разреши cleartext контент
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW)
-
                 settings.setUseWideViewPort(True)
                 settings.setLoadWithOverviewMode(True)
                 settings.setSupportZoom(False)
@@ -180,13 +192,18 @@ if AndroidAvailable:
                 ip = get_local_ip()
                 url = f"http://{ip}:5000/"
             
-                print(f"Loading WebView from: {url}")
+                print(f"[WebView] Loading URL: {url}")
 
-                # Загрузи URL напрямую (без loadDataWithBaseURL)
+                # Загрузи URL
                 wv.loadUrl(url)
 
-                wv.setWebViewClient(WebViewClient())
+                # Добавь WebViewClient для ловли ошибок
+                class DebugWebViewClient(WebViewClient):
+                    pass
+            
+                wv.setWebViewClient(DebugWebViewClient())
 
+                # Добавь WebView в Activity
                 params = LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     LayoutParams.MATCH_PARENT
@@ -194,9 +211,10 @@ if AndroidAvailable:
 
                 activity.addContentView(wv, params)
                 webview_ref['view'] = wv
+                print("[WebView] WebView added to activity successfully!")
 
             except Exception as e:
-                print(f"WebView error: {e}")
+                print(f"[WebView] ERROR: {e}")
                 import traceback
                 traceback.print_exc()
 
