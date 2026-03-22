@@ -215,16 +215,27 @@ class TestApp(App):
     def build(self):
         self.flask_thread = None
         self.fs = None
-        return Widget()
+        
+        # Создай видимый контейнер с загрузочным сообщением
+        self.root_box = BoxLayout(orientation='vertical')
+        self.status_label = Button(
+            text='Загрузка...\nПожалуйста подождите',
+            size_hint=(1, 1)
+        )
+        self.root_box.add_widget(self.status_label)
+        
+        return self.root_box
 
     def on_start(self):
+        # Запусти всё сразу, без больших задержек
         self.start_flask()
-
-        # Ждём пока всё поднимется
-        Clock.schedule_once(self.setup_android, 5.0)
+        
+        # Короче задержка для поднятия Flask
+        Clock.schedule_once(self.setup_android, 2.0)
 
     def setup_android(self, dt):
         if not AndroidAvailable:
+            self.status_label.text = 'Ошибка: нет Android'
             return
 
         try:
@@ -236,11 +247,14 @@ class TestApp(App):
                     ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 )
 
-            # КРИТИЧНО: ждём после смены ориентации
-            Clock.schedule_once(self.open_webview, 1.0)
+            # Открой WebView почти сразу
+            Clock.schedule_once(self.open_webview, 0.5)
 
         except Exception as e:
-            print("Setup error:", e)
+            print(f"Setup error: {e}")
+            self.status_label.text = f'Setup ошибка: {e}'
+            import traceback
+            traceback.print_exc()
 
     def set_fullscreen(self, *args):
         if AndroidAvailable and PythonActivity.mActivity:
@@ -253,14 +267,34 @@ class TestApp(App):
             t = threading.Thread(target=run_flask, daemon=True)
             t.start()
             self.flask_thread = t
+            print("[Kivy] Flask thread started")
 
     def open_webview(self, dt):
         if not AndroidAvailable:
             return
 
-        """Запусти WebView в UI потоке"""
-        run_on_ui_thread(AddWebView().run)
+        try:
+            print("[Kivy] Opening WebView...")
+            self.status_label.text = 'Открываю интерфейс...'
+            run_on_ui_thread(AddWebView().run)
+            # Обнови статус через 1 сек
+            Clock.schedule_once(self.check_webview_loaded, 1.0)
+        except Exception as e:
+            print(f"[Kivy] WebView open error: {e}")
+            self.status_label.text = f'WebView error: {e}'
+            import traceback
+            traceback.print_exc()
 
+    def check_webview_loaded(self, dt):
+        """Проверь загрузился ли WebView"""
+        if webview_ref['view']:
+            print("[Kivy] WebView loaded successfully!")
+            # Скрой загрузочный экран
+            self.status_label.text = ''
+            self.status_label.size_hint = (0, 0)
+        else:
+            print("[Kivy] WebView not ready yet")
+            self.status_label.text = 'WebView не готов...'
     # --- Методы управления Bluetooth ---
     
     def show_device_selector(self):
