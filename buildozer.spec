@@ -34,6 +34,7 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,AC
 
 # Также добавь это для явного разрешения cleartext
 android.gradle_manifest_application_attributes = android:usesCleartextTraffic="true"
+android.gradle_manifest = android/AndroidManifest.xml
 
 android.orientation = landscape
 log_level = 2
