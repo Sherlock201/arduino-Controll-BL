@@ -241,17 +241,6 @@ if AndroidAvailable:
             except Exception as e:
                 print("[WebView] Fullscreen error:", e)
 
-    class DebugWebViewClient(WebViewClient):
-        """WebViewClient с логированием"""
-        def onPageStarted(self, view, url, favicon):
-            print(f"[WebView] Page started: {url}")
-        
-        def onPageFinished(self, view, url):
-            print(f"[WebView] Page finished: {url}")
-        
-        def onReceivedError(self, view, request, error):
-            print(f"[WebView] Error - Code: {error.getErrorCode()}, Description: {error.getDescription()}")
-
     class AddWebView(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
 
@@ -285,7 +274,7 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # РЕШЕНИЕ: Используй реальный IP (не localhost!)
+                # Используй реальный IP (не localhost!)
                 ip = get_local_ip()
                 url = f"http://{ip}:5000/"
                 
@@ -294,7 +283,8 @@ if AndroidAvailable:
                 wv.loadUrl(url)
                 print("[WebView] URL loaded")
 
-                wv.setWebViewClient(DebugWebViewClient())
+                # Используй встроенный WebViewClient без подкласса
+                wv.setWebViewClient(WebViewClient())
 
                 params = LayoutParams(
                     LayoutParams.MATCH_PARENT,
@@ -500,10 +490,13 @@ class TestApp(App):
     def update_status_js(self, text):
         if webview_ref['view']:
             def run_js():
-                webview_ref['view'].evaluateJavascript(
-                    f"if(document.querySelector('.status')) document.querySelector('.status').textContent = '{text}';", 
-                    None
-                )
+                try:
+                    webview_ref['view'].evaluateJavascript(
+                        f"if(document.querySelector('.status')) document.querySelector('.status').textContent = '{text}';", 
+                        None
+                    )
+                except:
+                    pass
             try:
                 PythonActivity.mActivity.runOnUiThread(run_js)
             except:
