@@ -15,7 +15,7 @@ version = 0.1
 #requirements = python3,kivy,pyjnius,flask==2.0.3,werkzeug==2.0.3,markupsafe==2.0.1
 requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3,netifaces
 
-android.add_src = res
+android.resources = res
 
 android.presplash_color = #f5f7fb
 
@@ -38,8 +38,10 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,AC
 # android.manifest_application_attributes = android:usesCleartextTraffic="true"
 #android.manifest_application_attributes = android:networkSecurityConfig="@xml/network_security_config"
 
+android.network_security_config = res/xml/network_security_config.xml
+
 android.manifest_application_attributes = android:usesCleartextTraffic="true"
-android.gradle_manifest = manifest/AndroidManifest.xml
+#android.gradle_manifest = manifest/AndroidManifest.xml
 
 # иное
 log_level = 2
