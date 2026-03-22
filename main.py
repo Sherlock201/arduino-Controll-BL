@@ -3,17 +3,12 @@ from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.uix.recycleview import RecycleView
 from kivy.uix.popup import Popup
 
 import threading
 import os
-import socket
 import netifaces
-import time
 import json
-
-# HTTP сервер
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -31,27 +26,22 @@ except Exception as e:
 www_dir = os.path.join(os.getcwd(), 'www')
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
-    """Простой HTTP сервер для локального использования"""
+    """HTTP сервер для API"""
     
     def do_GET(self):
         """Обработка GET запросов"""
         try:
-            print(f"[HTTP] GET {self.path}")
-            
             parsed_path = urlparse(self.path)
             path = parsed_path.path
             query_params = parse_qs(parsed_path.query)
             
-            # Главная страница
-            if path == '/' or path == '':
-                self.serve_html_file('index.html')
+            print(f"[HTTP] GET {path}")
             
             # API endpoints
-            elif path == '/ping':
+            if path == '/ping':
                 self.send_json({"status": "pong"})
             
             elif path == '/bt_connect':
-                # Запусти подключение в главном потоке Kivy
                 app_instance = App.get_running_app()
                 Clock.schedule_once(lambda dt: app_instance.show_device_selector())
                 self.send_json({"status": "processing"})
@@ -68,21 +58,28 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 app_instance.send_to_bt(cmd)
                 self.send_json({"status": "ok", "cmd": cmd})
             
-            # Статические файлы
-            elif path.startswith('/www/'):
-                file_path = path[5:]  # Убери /www/
-                self.serve_static_file(file_path)
+            # Главная страница
+            elif path == '/' or path == '':
+                self.serve_html_file('index.html')
             
+            # Статические файлы
             else:
-                # Попробуй как статический файл
                 self.serve_static_file(path.lstrip('/'))
         
         except Exception as e:
             print(f"[HTTP] Error: {e}")
             self.send_error(500, str(e))
     
+    def do_OPTIONS(self):
+        """Обработка CORS preflight запросов"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
     def serve_html_file(self, filename):
-        """Подай HTML файл с подставленным IP"""
+        """Подай HTML файл"""
         try:
             index_path = os.path.join(www_dir, filename)
             
@@ -93,7 +90,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             with open(index_path, 'r', encoding='utf-8') as f:
                 html = f.read()
             
-            # Подставь реальный IP (для fetch запросов)
+            # Подставь реальный IP для fetch запросов
             ip = get_local_ip()
             html = html.replace('{{ SERVER_IP }}', ip)
             html = html.replace('{{SERVER_IP}}', ip)
@@ -109,11 +106,10 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_error(500, str(e))
     
     def serve_static_file(self, filename):
-        """Подай статические файлы (CSS, JS, PNG и т.д.)"""
+        """Подай статические файлы"""
         try:
-            # Безопасность: не позволяй выходить из www_dir
             file_path = os.path.join(www_dir, filename)
-            file_path = os.path.abspath(file_path)  # Нормализуй путь
+            file_path = os.path.abspath(file_path)
             
             if not file_path.startswith(www_dir):
                 self.send_error(403, "Access denied")
@@ -123,7 +119,6 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "File not found")
                 return
             
-            # Определи MIME тип
             mime_types = {
                 '.html': 'text/html',
                 '.css': 'text/css',
@@ -135,9 +130,6 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 '.gif': 'image/gif',
                 '.svg': 'image/svg+xml',
                 '.ico': 'image/x-icon',
-                '.woff': 'font/woff',
-                '.woff2': 'font/woff2',
-                '.ttf': 'font/ttf',
             }
             
             ext = os.path.splitext(file_path)[1].lower()
@@ -249,6 +241,17 @@ if AndroidAvailable:
             except Exception as e:
                 print("[WebView] Fullscreen error:", e)
 
+    class DebugWebViewClient(WebViewClient):
+        """WebViewClient с логированием"""
+        def onPageStarted(self, view, url, favicon):
+            print(f"[WebView] Page started: {url}")
+        
+        def onPageFinished(self, view, url):
+            print(f"[WebView] Page finished: {url}")
+        
+        def onReceivedError(self, view, request, error):
+            print(f"[WebView] Error - Code: {error.getErrorCode()}, Description: {error.getDescription()}")
+
     class AddWebView(PythonJavaClass):
         __javainterfaces__ = ['java/lang/Runnable']
 
@@ -282,15 +285,16 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # ВАЖНО: используй localhost вместо IP
-                url = "http://localhost:5000/"
+                # РЕШЕНИЕ: Используй реальный IP (не localhost!)
+                ip = get_local_ip()
+                url = f"http://{ip}:5000/"
                 
                 print(f"[WebView] Loading URL: {url}")
 
                 wv.loadUrl(url)
                 print("[WebView] URL loaded")
 
-                wv.setWebViewClient(WebViewClient())
+                wv.setWebViewClient(DebugWebViewClient())
 
                 params = LayoutParams(
                     LayoutParams.MATCH_PARENT,
@@ -310,7 +314,7 @@ if AndroidAvailable:
                 import traceback
                 traceback.print_exc()
 
-# -------------------- App --------------------
+# -------------------- Kivy App --------------------
 
 class DeviceSelector(BoxLayout):
     def __init__(self, devices, callback, **kwargs):
@@ -497,10 +501,13 @@ class TestApp(App):
         if webview_ref['view']:
             def run_js():
                 webview_ref['view'].evaluateJavascript(
-                    f"document.querySelector('.status').textContent = '{text}';", 
+                    f"if(document.querySelector('.status')) document.querySelector('.status').textContent = '{text}';", 
                     None
                 )
-            PythonActivity.mActivity.runOnUiThread(run_js)
+            try:
+                PythonActivity.mActivity.runOnUiThread(run_js)
+            except:
+                pass
 
 # --------------------
 
