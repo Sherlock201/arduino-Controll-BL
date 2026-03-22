@@ -262,50 +262,40 @@
   </div>
 
   <script>
-	const BASE = "http://{{ SERVER_IP }}:5000";
-	fetch(`${BASE}/ping`);
-	  
-	console.log("Second try:");
-	fetch('/ping')
+
+const API_URL = "http://localhost:5000";
+
+console.log('API URL:', API_URL);
+
+
+fetch(`${API_URL}/ping`)
     .then(r => r.json())
-    .then(data => console.log("server:", data))
-    .catch(err => console.log("Flask error:", err));
-	  
-	console.log("origin", window.location.origin);
-    
-    // 1. Глобальные переменные для хранения состояния (чтобы не слать дубли)
-	window.lastL = 0;
-	window.lastR = 0;
+    .then(data => console.log("Ping OK:", data))
+    .catch(err => console.log("Ping error:", err));
 
-	// 2. Глобальная функция отправки (доступна везде)
-	function sendLine(line) {
-  	fetch(`${BASE}/send?cmd=${encodeURIComponent(line)}`)
-    	.then(r => r.json())
-    	.then(data => console.log("server:", data))
-    	.catch(err => console.log("Flask error:", err));
-	}
+function sendLine(line) {
+    fetch(`${API_URL}/send?cmd=${encodeURIComponent(line)}`)
+        .then(r => r.json())
+        .then(data => console.log("server:", data))
+        .catch(err => console.log("error:", err));
+}
 
-	// 3. Привязка системных кнопок
-	document.getElementById('btn7').onclick = () => {
-  	fetch(`${BASE}/bt_connect`)
-    	.then(r => r.json())
-    	.then(data => console.log(data))
-    	.catch(err => console.log(err));
 
-		fetch('/ping')
-		.then(r => r.json())
-    .then(data => console.log("server:", data))
-    .catch(err => console.log("Flask error:", err));
-	};
+document.getElementById('btn7').onclick = () => {
+    fetch(`${API_URL}/bt_connect`)
+        .then(r => r.json())
+        .then(data => console.log(data))
+        .catch(err => console.log(err));
+};
 
-	document.getElementById('btn6').onclick = () => {
-  	fetch(`${BASE}/bt_disconnect`)
-    	.then(r => r.json())
-    	.then(data => console.log(data))
-    	.catch(err => console.log(err));
-	};
+document.getElementById('btn6').onclick = () => {
+    fetch(`${API_URL}/bt_disconnect`)
+        .then(r => r.json())
+        .then(data => console.log(data))
+        .catch(err => console.log(err));
+};
 
-	// 4. Логика кнопок A, B, C (btn1, 2, 3)
+
 	document.getElementById('btn1').onclick = () => sendLine('A\n');
 	document.getElementById('btn2').onclick = () => sendLine('B\n');
 	document.getElementById('btn3').onclick = () => sendLine('C\n');
