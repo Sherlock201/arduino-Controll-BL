@@ -175,6 +175,8 @@ if AndroidAvailable:
                 settings.setAllowFileAccess(True)
                 settings.setAllowContentAccess(True)
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW)
+                settings.setAllowFileAccessFromFileURLs(True)
+                settings.setAllowUniversalAccessFromFileURLs(True)
                 settings.setUseWideViewPort(True)
                 settings.setLoadWithOverviewMode(True)
                 settings.setSupportZoom(False)
