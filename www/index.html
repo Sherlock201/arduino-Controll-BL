@@ -275,6 +275,13 @@ window.onload = () => {
             .then(r => r.json())
             .then(d => console.log("OK:", d))
             .catch(e => console.log("Fetch failed, maybe server not ready:", e));
+		
+		var xhr = new XMLHttpRequest();
+			xhr.open('GET', 'http://127.0.0.1', true);
+			xhr.onreadystatechange = function() {
+    		console.log("XHR State:", xhr.readyState, "Status:", xhr.status);
+		};
+		xhr.send();
     }, 5000); // Даем серверу 5 секунд на прогрев
 };
 
