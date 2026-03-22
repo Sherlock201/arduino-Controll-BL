@@ -15,6 +15,7 @@ from urllib.parse import urlparse, parse_qs
 try:
     from jnius import autoclass, PythonJavaClass, java_method
     from android.runnable import run_on_ui_thread
+    from android.storage import app_storage_path 
     AndroidAvailable = True
 except Exception as e:
     AndroidAvailable = False
@@ -183,7 +184,10 @@ if AndroidAvailable:
 
                 # ВАЖНО: Загружай из android_asset, а не из сети!
                 # Это работает на любой версии Android без сетевых ограничений
-                asset_url = "file:///android_asset/index.html"
+                base_path = os.path.abspath(os.path.dirname(__file__))
+                index_path = os.path.join(base_path, "www", "index.html")
+                #asset_url = "file:///android_asset/index.html"
+                asset_url = f"file://{index_path}"
                 
                 print(f"[WebView] Loading from asset: {asset_url}")
 
