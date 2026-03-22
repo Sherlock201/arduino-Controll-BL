@@ -20,6 +20,7 @@ from flask import request, jsonify
 # pyjnius
 try:
     from jnius import autoclass, PythonJavaClass, java_method
+    from android.runnable import run_on_ui_thread
     AndroidAvailable = True
 except Exception as e:
     AndroidAvailable = False
@@ -31,14 +32,21 @@ www_dir = os.path.join(os.getcwd(), 'www')
 app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
 
 def get_local_ip():
-    for iface in netifaces.interfaces():
-        addrs = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET in addrs:
-            for addr in addrs[netifaces.AF_INET]:
-                ip = addr['addr']
-                # Пропускаем loopback и автоконфигурационные адреса
-                if ip != '127.0.0.1' and not ip.startswith('169.254'):
-                    return ip
+    """Получи локальный IP в сети"""
+    import socket
+    import netifaces
+    
+    try:
+        # Попробуй получить IP из активного интерфейса
+        for iface in netifaces.interfaces():
+            if iface.startswith('wlan') or iface.startswith('eth'):
+                addrs = netifaces.ifaddresses(iface)
+                if netifaces.AF_INET in addrs:
+                    return addrs[netifaces.AF_INET][0]['addr']
+    except:
+        pass
+    
+    # Fallback
     return '127.0.0.1'
 
 @app.route('/')
@@ -158,6 +166,7 @@ if AndroidAvailable:
                 settings.setDomStorageEnabled(True)
                 settings.setAllowFileAccess(True)
                 settings.setAllowContentAccess(True)
+                # ВАЖНО: Разреши cleartext контент
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW)
 
                 settings.setUseWideViewPort(True)
@@ -167,25 +176,13 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # Загружаем HTML напрямую
-                try:
-                    path = os.path.join(os.getcwd(), 'www', 'index.html')
-                    with open(path, 'r', encoding='utf-8') as f:
-                        html = f.read()
-                except:
-                    html = "<h1>index.html not found</h1>"
-
-                #ip = get_local_ip()  # получаем реальный IP (192.168.100.6)
-                #base_url = f"http://{ip}:5000/"
-                #wv.loadDataWithBaseURL(
-                #    base_url,
-                #    html,
-                #    'text/html',
-                #    'UTF-8',
-                #    None
-                #)
+                # Получи IP
                 ip = get_local_ip()
                 url = f"http://{ip}:5000/"
+            
+                print(f"Loading WebView from: {url}")
+
+                # Загрузи URL напрямую (без loadDataWithBaseURL)
                 wv.loadUrl(url)
 
                 wv.setWebViewClient(WebViewClient())
@@ -196,11 +193,12 @@ if AndroidAvailable:
                 )
 
                 activity.addContentView(wv, params)
-
                 webview_ref['view'] = wv
 
             except Exception as e:
-                print("WebView error:", e)
+                print(f"WebView error: {e}")
+                import traceback
+                traceback.print_exc()
 
 # -------------------- App --------------------
 class DeviceSelector(BoxLayout):
@@ -260,7 +258,8 @@ class TestApp(App):
         if not AndroidAvailable:
             return
 
-        PythonActivity.mActivity.runOnUiThread(AddWebView())
+        """Запусти WebView в UI потоке"""
+        run_on_ui_thread(AddWebView().run)
 
     # --- Методы управления Bluetooth ---
     
