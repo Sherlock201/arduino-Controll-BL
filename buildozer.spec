@@ -7,7 +7,8 @@ source.dir = .
 source.include_exts = py,kv,html,css,js,png,jpg
 
 # ДОБАВЬ ЭТОЙ СТРОКИ:
-private.storage_dir = www
+#private.storage_dir = www
+source.include_patterns = www/*
 
 version = 0.1
 
