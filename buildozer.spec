@@ -14,7 +14,7 @@ version = 0.1
 # главный питоновский файл
 requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3,netifaces
 
-android.resources = res
+#android.resources = res
 
 android.presplash_color = #f5f7fb
 
@@ -34,9 +34,11 @@ android.enable_androidx = True
 # разрешения (нужны для Bluetooth)
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
 
-android.network_security_config = res/xml/network_security_config.xml
+android.gradle_manifest = manifest/AndroidManifest.xml
 
-android.manifest_application_attributes = android:usesCleartextTraffic="true"
+#android.network_security_config = res/xml/network_security_config.xml
+
+#android.manifest_application_attributes = android:usesCleartextTraffic="true"
 
 # иное
 log_level = 2
