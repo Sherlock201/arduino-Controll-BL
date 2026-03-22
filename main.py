@@ -156,7 +156,7 @@ if AndroidAvailable:
                 settings.setDomStorageEnabled(True)
                 settings.setAllowFileAccess(True)
                 settings.setAllowContentAccess(True)
-                settings.setMixedContentMode(0)
+                settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW)
 
                 settings.setUseWideViewPort(True)
                 settings.setLoadWithOverviewMode(True)
