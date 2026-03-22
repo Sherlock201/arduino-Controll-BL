@@ -29,6 +29,6 @@ android.gradle_dependencies = androidx.core:core:1.6.0
 android.enable_androidx = True
 
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
-
+android.manifest.application_attributes = android:usesCleartextTraffic="true"
 android.orientation = landscape
 log_level = 2
