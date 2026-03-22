@@ -20,7 +20,7 @@ android.resources = res
 android.presplash_color = #f5f7fb
 
 # версии Android
-android.api = 31
+android.api = 28
 android.minapi = 21
 android.ndk = 25b
 
