@@ -6,6 +6,9 @@ package.domain = org.example
 source.dir = .
 source.include_exts = py,kv,html,css,js,png,jpg
 
+# ДОБАВЬ ЭТОЙ СТРОКИ:
+private.storage_dir = www
+
 version = 0.1
 
 requirements = python3,kivy,pyjnius,netifaces
