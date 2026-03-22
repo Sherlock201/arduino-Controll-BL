@@ -11,10 +11,11 @@ import os
 import socket
 import netifaces
 import time
+import json
 
-# Flask
-from flask import Flask, send_from_directory, render_template_string
-from flask import request, jsonify
+# HTTP сервер
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 
 # pyjnius
 try:
@@ -25,10 +26,149 @@ except Exception as e:
     AndroidAvailable = False
     print("pyjnius not available:", e)
 
-# -------------------- Flask --------------------
+# -------------------- HTTP Server --------------------
 
 www_dir = os.path.join(os.getcwd(), 'www')
-app = Flask(__name__, static_folder=www_dir, template_folder=www_dir)
+
+class HTTPRequestHandler(BaseHTTPRequestHandler):
+    """Простой HTTP сервер для локального использования"""
+    
+    def do_GET(self):
+        """Обработка GET запросов"""
+        try:
+            print(f"[HTTP] GET {self.path}")
+            
+            parsed_path = urlparse(self.path)
+            path = parsed_path.path
+            query_params = parse_qs(parsed_path.query)
+            
+            # Главная страница
+            if path == '/' or path == '':
+                self.serve_html_file('index.html')
+            
+            # API endpoints
+            elif path == '/ping':
+                self.send_json({"status": "pong"})
+            
+            elif path == '/bt_connect':
+                # Запусти подключение в главном потоке Kivy
+                app_instance = App.get_running_app()
+                Clock.schedule_once(lambda dt: app_instance.show_device_selector())
+                self.send_json({"status": "processing"})
+            
+            elif path == '/bt_disconnect':
+                app_instance = App.get_running_app()
+                Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
+                self.send_json({"status": "disconnected"})
+            
+            elif path == '/send':
+                cmd = query_params.get('cmd', [''])[0]
+                print(f"[HTTP] SEND: {cmd}")
+                app_instance = App.get_running_app()
+                app_instance.send_to_bt(cmd)
+                self.send_json({"status": "ok", "cmd": cmd})
+            
+            # Статические файлы
+            elif path.startswith('/www/'):
+                file_path = path[5:]  # Убери /www/
+                self.serve_static_file(file_path)
+            
+            else:
+                # Попробуй как статический файл
+                self.serve_static_file(path.lstrip('/'))
+        
+        except Exception as e:
+            print(f"[HTTP] Error: {e}")
+            self.send_error(500, str(e))
+    
+    def serve_html_file(self, filename):
+        """Подай HTML файл с подставленным IP"""
+        try:
+            index_path = os.path.join(www_dir, filename)
+            
+            if not os.path.exists(index_path):
+                self.send_error(404, "File not found")
+                return
+            
+            with open(index_path, 'r', encoding='utf-8') as f:
+                html = f.read()
+            
+            # Подставь реальный IP (для fetch запросов)
+            ip = get_local_ip()
+            html = html.replace('{{ SERVER_IP }}', ip)
+            html = html.replace('{{SERVER_IP}}', ip)
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(html.encode('utf-8'))
+            
+        except Exception as e:
+            print(f"[HTTP] serve_html_file error: {e}")
+            self.send_error(500, str(e))
+    
+    def serve_static_file(self, filename):
+        """Подай статические файлы (CSS, JS, PNG и т.д.)"""
+        try:
+            # Безопасность: не позволяй выходить из www_dir
+            file_path = os.path.join(www_dir, filename)
+            file_path = os.path.abspath(file_path)  # Нормализуй путь
+            
+            if not file_path.startswith(www_dir):
+                self.send_error(403, "Access denied")
+                return
+            
+            if not os.path.exists(file_path):
+                self.send_error(404, "File not found")
+                return
+            
+            # Определи MIME тип
+            mime_types = {
+                '.html': 'text/html',
+                '.css': 'text/css',
+                '.js': 'application/javascript',
+                '.json': 'application/json',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+                '.ico': 'image/x-icon',
+                '.woff': 'font/woff',
+                '.woff2': 'font/woff2',
+                '.ttf': 'font/ttf',
+            }
+            
+            ext = os.path.splitext(file_path)[1].lower()
+            mime_type = mime_types.get(ext, 'application/octet-stream')
+            
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            
+            self.send_response(200)
+            self.send_header('Content-type', mime_type)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+            
+        except Exception as e:
+            print(f"[HTTP] serve_static_file error: {e}")
+            self.send_error(500, str(e))
+    
+    def send_json(self, data):
+        """Отправь JSON ответ"""
+        json_data = json.dumps(data)
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json_data.encode('utf-8'))
+    
+    def log_message(self, format, *args):
+        """Отключи стандартный лог"""
+        pass
 
 def get_local_ip():
     """Получи локальный IP в сети"""
@@ -42,72 +182,31 @@ def get_local_ip():
         pass
     return '127.0.0.1'
 
-@app.route('/')
-def index():
-    index_path = os.path.join(www_dir, 'index.html')
-    if not os.path.exists(index_path):
-        return "<h1>No index.html</h1>"
-    with open(index_path, 'r', encoding='utf-8') as f:
-        html = f.read()
-
-    try:
-        ip = get_local_ip()
-        print("[Flask] Определенный ip:", ip)
-        return render_template_string(html, SERVER_IP=ip)
-    except Exception as e:
-        print("[Flask] Ошибка в index:", e)
-        return f"<h1>Error: {e}</h1>"
-
-@app.route('/<path:filename>')
-def static_files(filename):
-    return send_from_directory(www_dir, filename)
-
-@app.route('/ping')
-def ping():
-    print("[Flask] PING received")
-    return "pong"
-
-@app.route('/bt_connect')
-def bt_connect():
-    app_instance = App.get_running_app()
-    Clock.schedule_once(lambda dt: app_instance.show_device_selector())
-    return jsonify({"status": "processing"})
-
-@app.route('/bt_disconnect')
-def bt_disconnect():
-    app_instance = App.get_running_app()
-    Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
-    return jsonify({"status": "disconnected"})
-
-@app.route('/send')
-def send_command():
-    cmd = request.args.get('cmd', '')
-    print("[Flask] SEND HIT:", cmd)
-    app_instance = App.get_running_app()
-    app_instance.send_to_bt(cmd)
-    return jsonify({"status": "ok", "cmd": cmd})
-
-def run_flask():
-    print("[Flask] Начинаю запуск...")
-    print("[Flask] START FLASK ON 0.0.0.0:5000")
+def run_http_server():
+    """Запусти HTTP сервер"""
+    print("[HTTP] Начинаю запуск...")
     ip = get_local_ip()
-    print(f"[Flask] Определенный ip: {ip}")
-    print(f"[Flask] URL маршруты:\n{app.url_map}")
+    print(f"[HTTP] IP адрес: {ip}")
+    print(f"[HTTP] www директория: {www_dir}")
+    print(f"[HTTP] Статус файлов в www/:")
+    
+    if os.path.exists(www_dir):
+        for f in os.listdir(www_dir):
+            print(f"[HTTP]   - {f}")
+    else:
+        print("[HTTP]   ОШИБКА: www директория не найдена!")
     
     try:
-        app.run(
-            host='0.0.0.0', 
-            port=5000, 
-            threaded=True, 
-            debug=False,
-            use_reloader=False
-        )
+        server = HTTPServer(('0.0.0.0', 5000), HTTPRequestHandler)
+        print(f"[HTTP] Сервер запущен на http://{ip}:5000")
+        print("[HTTP] Слушаю на 0.0.0.0:5000")
+        server.serve_forever()
     except Exception as e:
-        print(f"[Flask] ОШИБКА при запуске: {e}")
+        print(f"[HTTP] ОШИБКА при запуске сервера: {e}")
         import traceback
         traceback.print_exc()
 
-# -------------------- Android --------------------
+# -------------------- Android WebView --------------------
 
 webview_ref = {'view': None, 'ready': False}
 
@@ -183,8 +282,7 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                ip = get_local_ip()
-                url = f"http://{ip}:5000/"
+                # ВАЖНО: используй localhost вместо IP
                 url = "http://localhost:5000/"
                 
                 print(f"[WebView] Loading URL: {url}")
@@ -213,6 +311,7 @@ if AndroidAvailable:
                 traceback.print_exc()
 
 # -------------------- App --------------------
+
 class DeviceSelector(BoxLayout):
     def __init__(self, devices, callback, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
@@ -225,8 +324,10 @@ class DeviceSelector(BoxLayout):
 class TestApp(App):
 
     def build(self):
-        self.flask_thread = None
+        self.http_thread = None
         self.fs = None
+        self.socket = None
+        self.ostream = None
         
         self.root_box = BoxLayout(orientation='vertical')
         self.status_label = Button(
@@ -239,9 +340,9 @@ class TestApp(App):
 
     def on_start(self):
         print("[Kivy] on_start вызван")
-        self.start_flask()
+        self.start_http_server()
         
-        # Дай Flask время поднять сервер
+        # Дай HTTP серверу время поднять
         Clock.schedule_once(self.setup_android, 2.0)
 
     def setup_android(self, dt):
@@ -260,7 +361,6 @@ class TestApp(App):
                 )
                 print("[Kivy] Orientation set to landscape")
 
-            # Открой WebView
             Clock.schedule_once(self.open_webview, 0.5)
 
         except Exception as e:
@@ -276,13 +376,13 @@ class TestApp(App):
             print("[Kivy] Setting fullscreen...")
             PythonActivity.mActivity.runOnUiThread(self.fs)
 
-    def start_flask(self):
-        if not self.flask_thread:
-            print("[Kivy] Starting Flask thread...")
-            t = threading.Thread(target=run_flask, daemon=True)
+    def start_http_server(self):
+        if not self.http_thread:
+            print("[Kivy] Starting HTTP server thread...")
+            t = threading.Thread(target=run_http_server, daemon=True)
             t.start()
-            self.flask_thread = t
-            print("[Kivy] Flask thread started")
+            self.http_thread = t
+            print("[Kivy] HTTP server thread started")
 
     def open_webview(self, dt):
         print("[Kivy] open_webview вызван")
@@ -295,13 +395,11 @@ class TestApp(App):
             webview_runnable = AddWebView()
             print("[Kivy] Scheduling on UI thread...")
             
-            # КРИТИЧНО: это должно быть в UI потоке
             PythonActivity.mActivity.runOnUiThread(webview_runnable)
             print("[Kivy] Runnable scheduled")
             
             self.status_label.text = 'Инициализация интерфейса...'
             
-            # Проверь через короткий промежуток
             Clock.schedule_once(self.check_webview_loaded, 1.0)
             
         except Exception as e:
@@ -321,7 +419,6 @@ class TestApp(App):
         else:
             print("[Kivy] WebView not ready yet, retrying...")
             self.status_label.text = 'WebView не готов...'
-            # Повтори проверку
             Clock.schedule_once(self.check_webview_loaded, 1.0)
 
     # --- Методы управления Bluetooth ---
