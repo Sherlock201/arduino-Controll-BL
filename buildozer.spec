@@ -19,7 +19,7 @@ requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3,netifaces
 android.presplash_color = #f5f7fb
 
 # версии Android
-android.api = 28
+android.api = 27
 android.minapi = 21
 android.ndk = 25b
 
