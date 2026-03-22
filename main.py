@@ -185,6 +185,7 @@ if AndroidAvailable:
 
                 ip = get_local_ip()
                 url = f"http://{ip}:5000/"
+                url = "http://localhost:5000/"
                 
                 print(f"[WebView] Loading URL: {url}")
 
