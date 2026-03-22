@@ -19,6 +19,16 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Inject Cleartext to Spec
+        # Этот шаг гарантирует, что строка в спеке будет без лишних символов и в нужном месте
+        run: |
+          # Удаляем все упоминания этого параметра, чтобы не было дублей
+          sed -i '/android.manifest.application_attributes/d' buildozer.spec
+          # Вставляем правильную строку сразу после заголовка [app]
+          sed -i '/\[app\]/a android.manifest.application_attributes = android:usesCleartextTraffic="true"' buildozer.spec
+          # Выводим в лог для проверки, что строка на месте
+          grep "android.manifest.application_attributes" buildozer.spec
+
       - name: Pull Buildozer Docker image
         run: docker pull kivy/buildozer:latest
 
