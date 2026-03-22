@@ -268,10 +268,15 @@ const API_URL = "http://127.0.0.1:5000";
 console.log('API URL:', API_URL);
 
 
-fetch(`${API_URL}/ping`)
-    .then(r => r.json())
-    .then(data => console.log("Ping OK:", data))
-    .catch(err => console.log("Ping error:", err));
+window.onload = () => {
+    console.log("Waiting for server...");
+    setTimeout(() => {
+        fetch("http://127.0.0.1")
+            .then(r => r.json())
+            .then(d => console.log("OK:", d))
+            .catch(e => console.log("Fetch failed, maybe server not ready:", e));
+    }, 5000); // Даем серверу 5 секунд на прогрев
+};
 
 function sendLine(line) {
     fetch(`${API_URL}/send?cmd=${encodeURIComponent(line)}`)
