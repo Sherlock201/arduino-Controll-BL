@@ -12,7 +12,6 @@ import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-# pyjnius
 try:
     from jnius import autoclass, PythonJavaClass, java_method
     from android.runnable import run_on_ui_thread
@@ -21,9 +20,7 @@ except Exception as e:
     AndroidAvailable = False
     print("pyjnius not available:", e)
 
-# -------------------- HTTP Server --------------------
-
-www_dir = os.path.join(os.getcwd(), 'www')
+# -------------------- HTTP Server (только для API) --------------------
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
     """HTTP сервер для API"""
@@ -37,7 +34,6 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             
             print(f"[HTTP] GET {path}")
             
-            # API endpoints
             if path == '/ping':
                 self.send_json({"status": "pong"})
             
@@ -58,13 +54,8 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                 app_instance.send_to_bt(cmd)
                 self.send_json({"status": "ok", "cmd": cmd})
             
-            # Главная страница
-            elif path == '/' or path == '':
-                self.serve_html_file('index.html')
-            
-            # Статические файлы
             else:
-                self.serve_static_file(path.lstrip('/'))
+                self.send_error(404, "Not found")
         
         except Exception as e:
             print(f"[HTTP] Error: {e}")
@@ -78,77 +69,6 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
     
-    def serve_html_file(self, filename):
-        """Подай HTML файл"""
-        try:
-            index_path = os.path.join(www_dir, filename)
-            
-            if not os.path.exists(index_path):
-                self.send_error(404, "File not found")
-                return
-            
-            with open(index_path, 'r', encoding='utf-8') as f:
-                html = f.read()
-            
-            # Подставь реальный IP для fetch запросов
-            ip = get_local_ip()
-            html = html.replace('{{ SERVER_IP }}', ip)
-            html = html.replace('{{SERVER_IP}}', ip)
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            self.wfile.write(html.encode('utf-8'))
-            
-        except Exception as e:
-            print(f"[HTTP] serve_html_file error: {e}")
-            self.send_error(500, str(e))
-    
-    def serve_static_file(self, filename):
-        """Подай статические файлы"""
-        try:
-            file_path = os.path.join(www_dir, filename)
-            file_path = os.path.abspath(file_path)
-            
-            if not file_path.startswith(www_dir):
-                self.send_error(403, "Access denied")
-                return
-            
-            if not os.path.exists(file_path):
-                self.send_error(404, "File not found")
-                return
-            
-            mime_types = {
-                '.html': 'text/html',
-                '.css': 'text/css',
-                '.js': 'application/javascript',
-                '.json': 'application/json',
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.gif': 'image/gif',
-                '.svg': 'image/svg+xml',
-                '.ico': 'image/x-icon',
-            }
-            
-            ext = os.path.splitext(file_path)[1].lower()
-            mime_type = mime_types.get(ext, 'application/octet-stream')
-            
-            with open(file_path, 'rb') as f:
-                content = f.read()
-            
-            self.send_response(200)
-            self.send_header('Content-type', mime_type)
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.send_header('Content-Length', len(content))
-            self.end_headers()
-            self.wfile.write(content)
-            
-        except Exception as e:
-            print(f"[HTTP] serve_static_file error: {e}")
-            self.send_error(500, str(e))
-    
     def send_json(self, data):
         """Отправь JSON ответ"""
         json_data = json.dumps(data)
@@ -159,7 +79,6 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json_data.encode('utf-8'))
     
     def log_message(self, format, *args):
-        """Отключи стандартный лог"""
         pass
 
 def get_local_ip():
@@ -175,28 +94,17 @@ def get_local_ip():
     return '127.0.0.1'
 
 def run_http_server():
-    """Запусти HTTP сервер"""
+    """Запусти HTTP сервер ТОЛЬКО для API"""
     print("[HTTP] Начинаю запуск...")
     ip = get_local_ip()
     print(f"[HTTP] IP адрес: {ip}")
-    print(f"[HTTP] www директория: {www_dir}")
-    print(f"[HTTP] Статус файлов в www/:")
-    
-    if os.path.exists(www_dir):
-        for f in os.listdir(www_dir):
-            print(f"[HTTP]   - {f}")
-    else:
-        print("[HTTP]   ОШИБКА: www директория не найдена!")
     
     try:
         server = HTTPServer(('0.0.0.0', 5000), HTTPRequestHandler)
         print(f"[HTTP] Сервер запущен на http://{ip}:5000")
-        print("[HTTP] Слушаю на 0.0.0.0:5000")
         server.serve_forever()
     except Exception as e:
-        print(f"[HTTP] ОШИБКА при запуске сервера: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[HTTP] ОШИБКА: {e}")
 
 # -------------------- Android WebView --------------------
 
@@ -259,7 +167,6 @@ if AndroidAvailable:
 
                 print("[WebView] Creating WebView instance...")
                 wv = WebView(activity)
-                print("[WebView] WebView created")
 
                 settings = wv.getSettings()
                 settings.setJavaScriptEnabled(True)
@@ -274,16 +181,15 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # Используй реальный IP (не localhost!)
-                ip = get_local_ip()
-                url = f"http://{ip}:5000/"
+                # ВАЖНО: Загружай из android_asset, а не из сети!
+                # Это работает на любой версии Android без сетевых ограничений
+                asset_url = "file:///android_asset/index.html"
                 
-                print(f"[WebView] Loading URL: {url}")
+                print(f"[WebView] Loading from asset: {asset_url}")
 
-                wv.loadUrl(url)
+                wv.loadUrl(asset_url)
                 print("[WebView] URL loaded")
 
-                # Используй встроенный WebViewClient без подкласса
                 wv.setWebViewClient(WebViewClient())
 
                 params = LayoutParams(
@@ -336,8 +242,7 @@ class TestApp(App):
         print("[Kivy] on_start вызван")
         self.start_http_server()
         
-        # Дай HTTP серверу время поднять
-        Clock.schedule_once(self.setup_android, 2.0)
+        Clock.schedule_once(self.setup_android, 1.0)
 
     def setup_android(self, dt):
         print("[Kivy] setup_android вызван")
@@ -360,8 +265,6 @@ class TestApp(App):
         except Exception as e:
             print(f"[Kivy] Setup error: {e}")
             self.status_label.text = f'Setup ошибка: {e}'
-            import traceback
-            traceback.print_exc()
 
     def set_fullscreen(self, *args):
         if AndroidAvailable and PythonActivity.mActivity:
@@ -376,50 +279,36 @@ class TestApp(App):
             t = threading.Thread(target=run_http_server, daemon=True)
             t.start()
             self.http_thread = t
-            print("[Kivy] HTTP server thread started")
 
     def open_webview(self, dt):
         print("[Kivy] open_webview вызван")
         if not AndroidAvailable:
-            print("[Kivy] Android not available")
             return
 
         try:
-            print("[Kivy] Creating AddWebView instance...")
             webview_runnable = AddWebView()
-            print("[Kivy] Scheduling on UI thread...")
-            
             PythonActivity.mActivity.runOnUiThread(webview_runnable)
-            print("[Kivy] Runnable scheduled")
             
-            self.status_label.text = 'Инициализация интерфейса...'
-            
+            self.status_label.text = 'Инициализация...'
             Clock.schedule_once(self.check_webview_loaded, 1.0)
             
         except Exception as e:
             print(f"[Kivy] WebView open error: {e}")
             self.status_label.text = f'WebView error: {e}'
-            import traceback
-            traceback.print_exc()
 
     def check_webview_loaded(self, dt):
-        """Проверь загрузился ли WebView"""
-        print(f"[Kivy] check_webview_loaded: ready={webview_ref['ready']}, view={webview_ref['view'] is not None}")
-        
         if webview_ref['ready'] and webview_ref['view']:
-            print("[Kivy] WebView loaded successfully!")
+            print("[Kivy] WebView loaded!")
             self.status_label.text = ''
             self.status_label.size_hint = (0, 0)
         else:
-            print("[Kivy] WebView not ready yet, retrying...")
             self.status_label.text = 'WebView не готов...'
             Clock.schedule_once(self.check_webview_loaded, 1.0)
 
-    # --- Методы управления Bluetooth ---
+    # --- Bluetooth методы ---
     
     def show_device_selector(self):
         if not AndroidAvailable: 
-            print("[Kivy] Bluetooth доступен только на Android")
             return
         
         try:
@@ -436,7 +325,7 @@ class TestApp(App):
                 device_dict[d.getName()] = d.getAddress()
                 
             if not device_dict:
-                self.update_status_js("Нет сопряженных устройств")
+                self.update_status_js("Нет устройств")
                 return
 
             content = DeviceSelector(device_dict, self.connect_to_addr)
@@ -501,8 +390,6 @@ class TestApp(App):
                 PythonActivity.mActivity.runOnUiThread(run_js)
             except:
                 pass
-
-# --------------------
 
 if __name__ == '__main__':
     TestApp().run()
