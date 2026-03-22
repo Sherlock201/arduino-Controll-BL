@@ -101,6 +101,7 @@ if AndroidAvailable:
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     WebView = autoclass('android.webkit.WebView')
     WebViewClient = autoclass('android.webkit.WebViewClient')
+    WebSettings = autoclass('android.webkit.WebSettings')
     LayoutParams = autoclass('android.view.ViewGroup$LayoutParams')
     View = autoclass('android.view.View')
     ActivityInfo = autoclass('android.content.pm.ActivityInfo')
