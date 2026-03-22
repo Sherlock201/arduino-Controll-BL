@@ -28,9 +28,7 @@ jobs:
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
             kivy/buildozer:latest \
-            bash -c "buildozer android clean && \
-                     sed -i 's/<application/<application android:usesCleartextTraffic=\"true\"/g' .buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/common/build/templates/AndroidManifest.tmplt.xml || true && \
-                     buildozer android debug"
+            android clean debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
