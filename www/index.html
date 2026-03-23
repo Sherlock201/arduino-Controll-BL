@@ -271,17 +271,13 @@ console.log('API URL:', API_URL);
 window.onload = () => {
     console.log("Waiting for server...");
     setTimeout(() => {
+		console.log("Send ping");	
         fetch("http://127.0.0.1")
             .then(r => r.json())
             .then(d => console.log("OK:", d))
             .catch(e => console.log("Fetch failed, maybe server not ready:", e));
 		
-		var xhr = new XMLHttpRequest();
-			xhr.open('GET', 'http://127.0.0.1', true);
-			xhr.onreadystatechange = function() {
-    		console.log("XHR State:", xhr.readyState, "Status:", xhr.status);
-		};
-		xhr.send();
+		console.log("Send ping");	
     }, 10000); // Даем серверу 5 секунд на прогрев
 };
 
