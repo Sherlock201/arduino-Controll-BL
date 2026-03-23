@@ -1,49 +1,29 @@
-name: Build Android APK (Buildozer Force Patch)
+name: Build Android APK (Custom Template Method)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
 
-      - name: Pull Buildozer Docker image
-        run: docker pull kivy/buildozer:latest
+      - name: Patch Spec for Custom Manifest
+        run: |
+          # Принудительно указываем p4a использовать наш файл как шаблон
+          sed -i '/p4a.extra_args/d' buildozer.spec
+          sed -i "/\[app\]/a p4a.extra_args = --manifest=my_manifest.xml" buildozer.spec
+          # Также убедимся что ресурсы на месте
+          sed -i '/android.add_resources/d' buildozer.spec
+          sed -i "/\[app\]/a android.add_resources = res" buildozer.spec
 
-      - name: Build APK (Force Patching Manifest)
+      - name: Build APK
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
-            --entrypoint /bin/bash \
             kivy/buildozer:latest \
-            -c "
-              # 1. Запускаем установку компонентов p4a без подтверждения root
-              export BUILDOZER_ALLOW_ORG_DOC_ROOT=1
-              yes y | buildozer android p4a -- --help || true
-              
-              # 2. Ищем шаблон манифеста в локальной директории билда
-              # В современных версиях p4a качается в .buildozer/android/platform/...
-              find .buildozer/ -name AndroidManifest.tmplt.xml -exec sed -i 's/<application/<application android:usesCleartextTraffic=\"true\" android:networkSecurityConfig=\"@xml\/network_security_config\"/g' {} + || true
-              
-              # 3. Запускаем реальную сборку с игнорированием проверки root
-              yes y | buildozer -v android debug
-            "
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: bin/*.apk
+            android debug
