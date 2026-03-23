@@ -22,6 +22,12 @@ jobs:
 
       - name: Build APK
         run: |
+          # Прописываем абсолютный путь внутри контейнера к твоему манифесту
+          sed -i 's|^#\? \?android.manifest.xml =.*|android.manifest.xml = /home/user/hostcwd/AndroidManifest.xml|' buildozer.spec
+          
+          # Убеждаемся, что ресурсы включены
+          sed -i 's|^#\? \?android.add_resources =.*|android.add_resources = res|' buildozer.spec
+
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
