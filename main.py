@@ -220,6 +220,15 @@ class TestApp(App):
         
         Clock.schedule_once(self.setup_android, 1.0)
 
+    def set_webview_visibility(self, visible):
+        if not AndroidAvailable or not webview_ref['view']:
+            return
+        PythonActivity.mActivity.runOnUiThread(
+            lambda: webview_ref['view'].setVisibility(
+                View.VISIBLE if visible else View.GONE
+            )
+        )
+    
     def setup_android(self, dt):
         print("[Kivy] setup_android вызван")
         if not AndroidAvailable:
@@ -293,7 +302,7 @@ class TestApp(App):
             # Скрываем WebView
             if webview_ref['view']:
                 print("[Kivy] Hiding WebView")
-                webview_ref['view'].setVisibility(View.GONE)
+                self.set_webview_visibility(False)
         
             BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
             adapter = BluetoothAdapter.getDefaultAdapter()
@@ -329,10 +338,7 @@ class TestApp(App):
         """Восстанавливаем видимость WebView после закрытия попапа"""
         if webview_ref['view']:
             print("[Kivy] Restoring WebView")
-            webview_ref['view'].setVisibility(View.VISIBLE)
-            
-            if webview_ref['view']:
-                webview_ref['view'].setVisibility(View.VISIBLE)
+            self.set_webview_visibility(True)
     
     def connect_to_addr(self, address):
         if hasattr(self, 'popup'):
