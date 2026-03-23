@@ -9,8 +9,7 @@ import threading
 import os
 import netifaces
 import json
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from flask import Flask, jsonify, request
 
 try:
     from jnius import autoclass, PythonJavaClass, java_method
@@ -21,66 +20,41 @@ except Exception as e:
     AndroidAvailable = False
     print("pyjnius not available:", e)
 
-# -------------------- HTTP Server (только для API) --------------------
+# -------------------- Flask Server (только для API) --------------------
 
-class HTTPRequestHandler(BaseHTTPRequestHandler):
-    """HTTP сервер для API"""
-    
-    def do_GET(self):
-        """Обработка GET запросов"""
-        try:
-            parsed_path = urlparse(self.path)
-            path = parsed_path.path
-            query_params = parse_qs(parsed_path.query)
-            
-            print(f"[HTTP] GET {path}")
-            
-            if path == '/ping':
-                self.send_json({"status": "pong"})
-            
-            elif path == '/bt_connect':
-                app_instance = App.get_running_app()
-                Clock.schedule_once(lambda dt: app_instance.show_device_selector())
-                self.send_json({"status": "processing"})
-            
-            elif path == '/bt_disconnect':
-                app_instance = App.get_running_app()
-                Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
-                self.send_json({"status": "disconnected"})
-            
-            elif path == '/send':
-                cmd = query_params.get('cmd', [''])[0]
-                print(f"[HTTP] SEND: {cmd}")
-                app_instance = App.get_running_app()
-                app_instance.send_to_bt(cmd)
-                self.send_json({"status": "ok", "cmd": cmd})
-            
-            else:
-                self.send_error(404, "Not found")
-        
-        except Exception as e:
-            print(f"[HTTP] Error: {e}")
-            self.send_error(500, str(e))
-    
-    def do_OPTIONS(self):
-        """Обработка CORS preflight запросов"""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-    
-    def send_json(self, data):
-        """Отправь JSON ответ"""
-        json_data = json.dumps(data)
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(json_data.encode('utf-8'))
-    
-    def log_message(self, format, *args):
-        pass
+app = Flask(__name__)
+
+@app.after_request
+def after_request(response):
+    """Добавляем CORS заголовки ко всем ответам"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    return response
+
+@app.route('/ping', methods=['GET', 'OPTIONS'])
+def ping():
+    return jsonify({"status": "pong"})
+
+@app.route('/bt_connect', methods=['GET', 'OPTIONS'])
+def bt_connect():
+    app_instance = App.get_running_app()
+    Clock.schedule_once(lambda dt: app_instance.show_device_selector())
+    return jsonify({"status": "processing"})
+
+@app.route('/bt_disconnect', methods=['GET', 'OPTIONS'])
+def bt_disconnect():
+    app_instance = App.get_running_app()
+    Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
+    return jsonify({"status": "disconnected"})
+
+@app.route('/send', methods=['GET', 'OPTIONS'])
+def send():
+    cmd = request.args.get('cmd', '')
+    print(f"[HTTP] SEND: {cmd}")
+    app_instance = App.get_running_app()
+    app_instance.send_to_bt(cmd)
+    return jsonify({"status": "ok", "cmd": cmd})
 
 def get_local_ip():
     """Получи локальный IP в сети"""
@@ -94,16 +68,14 @@ def get_local_ip():
         pass
     return '127.0.0.1'
 
-def run_http_server():
-    """Запусти HTTP сервер ТОЛЬКО для API"""
+def run_flask_server():
+    """Запусти Flask сервер ТОЛЬКО для API"""
     print("[HTTP] Начинаю запуск...")
     ip = get_local_ip()
     print(f"[HTTP] IP адрес: {ip}")
-    
+
     try:
-        server = HTTPServer(('0.0.0.0', 5000), HTTPRequestHandler)
-        print(f"[HTTP] Сервер запущен на http://{ip}:5000")
-        server.serve_forever()
+        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
     except Exception as e:
         print(f"[HTTP] ОШИБКА: {e}")
 
@@ -184,11 +156,9 @@ if AndroidAvailable:
                 wv.setVerticalScrollBarEnabled(False)
                 wv.setHorizontalScrollBarEnabled(False)
 
-                # ВАЖНО: Загружай из android_asset, а не из сети!
-                # Это работает на любой версии Android без сетевых ограничений
+                # Загружаем локальный HTML из папки www
                 base_path = os.path.abspath(os.path.dirname(__file__))
                 index_path = os.path.join(base_path, "www", "index.html")
-                #asset_url = "file:///android_asset/index.html"
                 asset_url = f"file://{index_path}"
                 
                 print(f"[WebView] Loading from asset: {asset_url}")
@@ -281,8 +251,8 @@ class TestApp(App):
 
     def start_http_server(self):
         if not self.http_thread:
-            print("[Kivy] Starting HTTP server thread...")
-            t = threading.Thread(target=run_http_server, daemon=True)
+            print("[Kivy] Starting Flask server thread...")
+            t = threading.Thread(target=run_flask_server, daemon=True)
             t.start()
             self.http_thread = t
 
