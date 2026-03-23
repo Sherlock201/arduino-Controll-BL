@@ -6,9 +6,6 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,14 +13,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Pull Buildozer Docker image
-        run: docker pull kivy/buildozer:latest
-
-      - name: Build APK
+      - name: Build APK with Docker
         run: |
+          # Проверяем наличие конфига перед сборкой (для отладки в логах Гитхаба)
+          ls -R res/xml/
+          
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
