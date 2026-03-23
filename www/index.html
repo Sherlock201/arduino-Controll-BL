@@ -272,7 +272,7 @@ window.onload = () => {
     console.log("Waiting for server...");
     setTimeout(() => {
 		console.log("Send ping");	
-        fetch("http://127.0.0.1")
+        fetch(${API_URL}/ping)
             .then(r => r.json())
             .then(d => console.log("OK:", d))
             .catch(e => console.log("Fetch failed, maybe server not ready:", e));
