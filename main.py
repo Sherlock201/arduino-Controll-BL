@@ -286,11 +286,18 @@ class TestApp(App):
     def show_device_selector(self):
         if not AndroidAvailable: 
             return
-        
+    
+        print("[Kivy] show_device_selector called")
+    
         try:
+            # Скрываем WebView
+            if webview_ref['view']:
+                print("[Kivy] Hiding WebView")
+                webview_ref['view'].setVisibility(View.GONE)
+        
             BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
             adapter = BluetoothAdapter.getDefaultAdapter()
-            
+        
             if not adapter.isEnabled():
                 self.update_status_js("Включите Bluetooth!")
                 return
@@ -299,17 +306,34 @@ class TestApp(App):
             device_dict = {}
             for d in paired_devices:
                 device_dict[d.getName()] = d.getAddress()
-                
+            
             if not device_dict:
                 self.update_status_js("Нет устройств")
                 return
 
             content = DeviceSelector(device_dict, self.connect_to_addr)
             self.popup = Popup(title="Выберите устройство", content=content, size_hint=(0.9, 0.9))
+        
+            # Здесь привязываем обработчик закрытия
+            self.popup.bind(on_dismiss=self.restore_webview)
+        
             self.popup.open()
+            print("[Kivy] Popup opened, WebView hidden")
+        
         except Exception as e:
             print(f"[Kivy] Selector error: {e}")
+            # Если ошибка, сразу восстанавливаем WebView
+            self.restore_webview(None)
 
+    def restore_webview(self, instance):
+        """Восстанавливаем видимость WebView после закрытия попапа"""
+        if webview_ref['view']:
+            print("[Kivy] Restoring WebView")
+            webview_ref['view'].setVisibility(View.VISIBLE)
+            
+            if webview_ref['view']:
+                webview_ref['view'].setVisibility(View.VISIBLE)
+    
     def connect_to_addr(self, address):
         if hasattr(self, 'popup'):
             self.popup.dismiss()
