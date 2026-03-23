@@ -19,46 +19,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Create Force Patch
-        # Мы создаем структуру папок, которую buildozer монтирует внутри контейнера.
-        # Мы кладем туда ПРАВИЛЬНЫЙ шаблон манифеста.
+      - name: Inject Cleartext to Spec
+        # Этот шаг гарантирует, что строка в спеке будет без лишних символов и в нужном месте
         run: |
-          mkdir -p .buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/common/build/templates/
-          
-          # Записываем "хакнутый" шаблон сразу с нужными атрибутами
-          cat <<EOF > .buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/common/build/templates/AndroidManifest.tmplt.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="{{ args.package }}"
-              android:versionCode="{{ args.version_code }}"
-              android:versionName="{{ args.version }}"
-              android:installLocation="{{ args.install_location }}">
-              <uses-sdk android:minSdkVersion="{{ args.min_sdk_version }}" android:targetSdkVersion="{{ args.target_sdk_version }}" />
-              {% for permission in args.permissions %}
-              <uses-permission android:name="{{ permission }}" />
-              {% endfor %}
-              <application 
-                  android:label="{{ args.name }}"
-                  android:icon="@mipmap/icon"
-                  android:hardwareAccelerated="true"
-                  android:usesCleartextTraffic="true"
-                  android:networkSecurityConfig="@xml/network_security_config"
-                  {{ args.extra_application_attributes }}>
-                  <activity android:name="org.kivy.android.PythonActivity"
-                      android:label="{{ args.name }}"
-                      android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|layoutDirection|fontScale"
-                      android:launchMode="singleTask"
-                      android:screenOrientation="{{ args.orientation }}"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-                  {{ args.extra_manifest_xml }}
-              </application>
-          </manifest>
-          EOF
+          # Удаляем все упоминания этого параметра, чтобы не было дублей
+          sed -i '/android.manifest.application_attributes/d' buildozer.spec
+          # Вставляем правильную строку сразу после заголовка [app]
+          sed -i '/\[app\]/a android.manifest.application_attributes = android:usesCleartextTraffic="true"' buildozer.spec
+          # Выводим в лог для проверки, что строка на месте
+          grep "android.manifest.application_attributes" buildozer.spec
 
       - name: Pull Buildozer Docker image
         run: docker pull kivy/buildozer:latest
