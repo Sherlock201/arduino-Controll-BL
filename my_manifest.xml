@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="{{ args.package }}"
+    android:versionCode="{{ args.version_code }}"
+    android:versionName="{{ args.version }}"
+    android:installLocation="{{ args.install_location }}">
+    <uses-sdk android:minSdkVersion="{{ args.min_sdk_version }}" android:targetSdkVersion="{{ args.target_sdk_version }}" />
+    {% for permission in args.permissions %}
+    <uses-permission android:name="{{ permission }}" />
+    {% endfor %}
+    <application 
+        android:label="{{ args.name }}"
+        android:icon="@mipmap/icon"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        {{ args.extra_application_attributes }}>
+        <activity android:name="org.kivy.android.PythonActivity"
+            android:label="{{ args.name }}"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|layoutDirection|fontScale"
+            android:launchMode="singleTask"
+            android:screenOrientation="{{ args.orientation }}"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        {{ args.extra_manifest_xml }}
+    </application>
+</manifest>
