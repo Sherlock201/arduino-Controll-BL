@@ -1,35 +1,37 @@
-name: Build Android APK (Custom Template Method)
+name: Build Android APK (Buildozer)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Patch Spec for Custom Manifest
-        run: |
-          # Принудительно указываем p4a использовать наш файл как шаблон
-          sed -i '/p4a.extra_args/d' buildozer.spec
-          sed -i "/\[app\]/a p4a.extra_args = --manifest=my_manifest.xml" buildozer.spec
-          # Также убедимся что ресурсы на месте
-          sed -i '/android.add_resources/d' buildozer.spec
-          sed -i "/\[app\]/a android.add_resources = res" buildozer.spec
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Pull Buildozer Docker image
+        run: docker pull kivy/buildozer:latest
 
       - name: Build APK
         run: |
-          # Прописываем абсолютный путь внутри контейнера к твоему манифесту
-          sed -i 's|^#\? \?android.manifest.xml =.*|android.manifest.xml = /home/user/hostcwd/AndroidManifest.xml|' buildozer.spec
-          
-          # Убеждаемся, что ресурсы включены
-          sed -i 's|^#\? \?android.add_resources =.*|android.add_resources = res|' buildozer.spec
-
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
             kivy/buildozer:latest \
             android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: bin/*.apk
