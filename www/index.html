@@ -272,12 +272,12 @@ window.onload = () => {
     console.log("Waiting for server...");
     setTimeout(() => {
 		console.log("Send ping");	
-        fetch(${API_URL}/ping)
-            .then(r => r.json())
-            .then(d => console.log("OK:", d))
-            .catch(e => console.log("Fetch failed, maybe server not ready:", e));
-		
-		console.log("Send ping");	
+        fetch(`${API_URL}/ping`)
+    	.then(r => r.json())
+    	.then(d => console.log("OK:", d))
+    	.catch(e => console.log("Fetch failed, maybe server not ready:", e));
+
+	console.log('Send ping');	
     }, 10000); // Даем серверу 5 секунд на прогрев
 };
 
