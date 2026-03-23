@@ -30,15 +30,16 @@ jobs:
             --entrypoint /bin/bash \
             kivy/buildozer:latest \
             -c "
-              # 1. Запускаем предварительную подготовку, чтобы скачались компоненты p4a
-              buildozer android p4a -- --help || true
+              # 1. Запускаем установку компонентов p4a без подтверждения root
+              export BUILDOZER_ALLOW_ORG_DOC_ROOT=1
+              yes y | buildozer android p4a -- --help || true
               
-              # 2. Ищем шаблон манифеста внутри контейнера и ЖЕСТКО внедряем атрибуты
-              # Мы правим файл AndroidManifest.tmplt.xml во всех возможных местах
-              find /home/user/.buildozer -name AndroidManifest.tmplt.xml -exec sed -i 's/<application/<application android:usesCleartextTraffic=\"true\" android:networkSecurityConfig=\"@xml\/network_security_config\"/g' {} + || true
+              # 2. Ищем шаблон манифеста в локальной директории билда
+              # В современных версиях p4a качается в .buildozer/android/platform/...
+              find .buildozer/ -name AndroidManifest.tmplt.xml -exec sed -i 's/<application/<application android:usesCleartextTraffic=\"true\" android:networkSecurityConfig=\"@xml\/network_security_config\"/g' {} + || true
               
-              # 3. Запускаем реальную сборку
-              buildozer -v android debug
+              # 3. Запускаем реальную сборку с игнорированием проверки root
+              yes y | buildozer -v android debug
             "
 
       - name: Upload APK
