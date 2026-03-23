@@ -31,7 +31,7 @@ android.enable_androidx = True
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,ACCESS_FINE_LOCATION,BLUETOOTH_CONNECT,BLUETOOTH_SCAN
 android.manifest.application_attributes = android:networkSecurityConfig="@xml/network_security_config" android:usesCleartextTraffic="true"
 
-p4a.extra_args = --manifest=./my_manifest.xml
+android.manifest.xml = AndroidManifest.xml
 
 android.add_resources = res
 #android.meta_data = android.security.net.config=@xml/network_security_config
