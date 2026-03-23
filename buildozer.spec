@@ -34,5 +34,7 @@ android.manifest.application_attributes = android:networkSecurityConfig="@xml/ne
 android.add_resources = res
 #android.meta_data = android.security.net.config=@xml/network_security_config
 
+android.manifest.xml = AndroidManifest.xml
+
 android.orientation = landscape
 log_level = 2
