@@ -2,8 +2,7 @@ name: Build Android APK (Buildozer)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -16,22 +15,24 @@ jobs:
 
       - name: Build APK with Docker
         run: |
-          # Проверка ресурсов (для логов)
-          ls -R res/xml/ || echo "Directory res/xml/ not found!"
-          
           docker run --rm \
             -v "${{ github.workspace }}:/home/user/hostcwd" \
             -w /home/user/hostcwd \
             --entrypoint /bin/bash \
             kivy/buildozer:latest \
             -c "
-            # 1. Жестко разрешаем root через переменную
             export APP_ALLOW_ROOT=1
             
-            # 2. Ищем шаблон манифеста везде в .venv (теперь путь точно найдется)
-            find /home/user/.venv/ -name AndroidManifest.tmpl.xml -exec sed -i 's/<application/<application android:networkSecurityConfig=\"@xml\/network_security_config\" android:usesCleartextTraffic=\"true\"/g' {} +
+            # 1. Находим ВСЕ шаблоны манифестов в системе и вшиваем конфиг
+            # Мы ищем во всем корне / кроме папок системы, чтобы наверняка
+            find /home/user/ -name AndroidManifest.tmpl.xml -exec sed -i 's/<application/<application android:networkSecurityConfig=\"@xml\/network_security_config\" android:usesCleartextTraffic=\"true\"/g' {} +
             
-            # 3. Запускаем сборку, автоматически отвечая 'y' на любые вопросы
+            # 2. Проверяем, применился ли патч (выведем в лог для отладки)
+            echo '--- ПРОВЕРКА ПАТЧА ШАБЛОНА ---'
+            find /home/user/ -name AndroidManifest.tmpl.xml -exec grep -H 'networkSecurityConfig' {} +
+            echo '--- КОНЕЦ ПРОВЕРКИ ---'
+
+            # 3. Запуск сборки с авто-ответом 'yes'
             yes y | buildozer android debug
             "
 
