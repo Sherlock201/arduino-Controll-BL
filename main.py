@@ -58,7 +58,7 @@ def send():
         # print(f"[HTTP] SEND: {cmd}") # Можно закомментить для скорости
         app_instance = App.get_running_app()
         # Выполняем отправку в Bluetooth
-        Clock.schedule_once(lambda dt: app_instance.send_to_bt(cmd))
+        Clock.schedule_once(lambda dt: app_instance.(cmd))
     
     # Для Beacon ответ не очень важен, но Flask требует вернуть хоть что-то
     return jsonify({"status": "ok"}), 200
@@ -382,24 +382,24 @@ class TestApp(App):
             pass
 
     def send_to_bt(self, data):
-    if self.ostream:
-        try:
-            # 1. Кодируем строку в байты Python
-            python_bytes = data.encode('utf-8')
+        if self.ostream:
+            try:
+                # 1. Кодируем строку в байты Python
+                python_bytes = data.encode('utf-8')
             
-            # 2. Преобразуем байты Python в Java-массив байтов (byte array)
-            # Это критически важно для корректной работы ostream.write()
-            java_byte_array = [b if b < 128 else b - 256 for b in python_bytes]
+                # 2. Преобразуем байты Python в Java-массив байтов (byte array)
+                # Это критически важно для корректной работы ostream.write()
+                java_byte_array = [b if b < 128 else b - 256 for b in python_bytes]
             
-            # 3. Пишем в поток
-            self.ostream.write(java_byte_array)
-            self.ostream.flush()
-            print(f"[BT] Sent: {data.strip()}") # Для отладки в логах
-        except Exception as e:
-            print(f"[BT] Error: {e}")
-            self.update_status_js("Связь потеряна")
-            self.socket = None
-            self.ostream = None
+                # 3. Пишем в поток
+                self.ostream.write(java_byte_array)
+                self.ostream.flush()
+                print(f"[BT] Sent: {data.strip()}") # Для отладки в логах
+            except Exception as e:
+                print(f"[BT] Error: {e}")
+                self.update_status_js("Связь потеряна")
+                self.socket = None
+                self.ostream = None
 
     def update_status_js(self, text):
         if webview_ref['view']:
