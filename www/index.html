@@ -267,6 +267,45 @@ const API_URL = "http://127.0.0.1:5000";
 
 console.log('API URL:', API_URL);
 
+let lastSendTime = 0;
+const throttleMs = 50;
+
+// Функция переключения состояний
+function updateUI(isConnected) {
+    const btnConnect = document.getElementById('btn7');
+    const btnDisconnect = document.getElementById('btn6');
+    const actionButtons = ['btn1', 'btn2', 'btn3'];
+
+    if (isConnected) {
+        // Подключено: BT-Connect заблокирован, остальное доступно
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = false;
+        actionButtons.forEach(id => document.getElementById(id).disabled = false);
+    } else {
+        // Отключено: Только BT-Connect доступен
+        btnConnect.disabled = false;
+        btnDisconnect.disabled = true;
+        actionButtons.forEach(id => document.getElementById(id).disabled = true);
+    }
+}
+	  
+/*По умолчанию кнопки не доступны*/
+updateUI(false);
+	  
+
+
+// Вставляем обновление статуса (вызывается из Python)
+function setStatus(text) {
+    const statusEl = document.querySelector('.status');
+    if (statusEl) statusEl.textContent = text;
+    
+    // Логика авто-переключения кнопок по тексту статуса
+    if (text === "Подключено") {
+        updateUI(true);
+    } else if (text === "Отключено" || text.includes("Ошибка") || text === "Связь потеряна") {
+        updateUI(false);
+    }
+}
 
 window.onload = () => {
     console.log("Waiting for server...");
@@ -282,10 +321,18 @@ window.onload = () => {
 };
 
 function sendLine(line) {
-    fetch(`${API_URL}/send?cmd=${encodeURIComponent(line)}`)
-        .then(r => r.json())
-        .then(data => console.log("server:", data))
-        .catch(err => console.log("error:", err));
+    const now = Date.now();
+    // Если прошло меньше 50мс с последней отправки - выходим
+    if (now - lastSendTime < throttleMs) return; 
+
+    lastSendTime = now;
+
+    // Используем Beacon API для мгновенной отправки
+    // Формируем URL с параметром cmd
+    const url = `${API_URL}/send?cmd=${encodeURIComponent(line)}`;
+    
+    // sendBeacon отправляет POST запрос в фоне. Браузер сам его протолкнет.
+    navigator.sendBeacon(url);
 }
 
 
@@ -325,10 +372,6 @@ document.getElementById('btn6').onclick = () => {
         body.classList.remove('bg-a');
         body.classList.add('bg-b');
     });
-
-	document.getElementById('btn1').addEventListener('click', ()=>console.log('Button A'));
-    document.getElementById('btn2').addEventListener('click', ()=>console.log('Button B'));
-    document.getElementById('btn3').addEventListener('click', ()=>console.log('Button C'));
 
     (function(){
       const joysticks = [
