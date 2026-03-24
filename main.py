@@ -48,13 +48,19 @@ def bt_disconnect():
     Clock.schedule_once(lambda dt: app_instance.disconnect_bt())
     return jsonify({"status": "disconnected"})
 
-@app.route('/send', methods=['GET', 'OPTIONS'])
+@app.route('/send', methods=['GET', 'POST', 'OPTIONS'])
 def send():
-    cmd = request.args.get('cmd', '')
-    print(f"[HTTP] SEND: {cmd}")
-    app_instance = App.get_running_app()
-    app_instance.send_to_bt(cmd)
-    return jsonify({"status": "ok", "cmd": cmd})
+    # Пытаемся взять cmd из GET (args) или POST (form)
+    cmd = request.args.get('cmd') or request.form.get('cmd')
+    
+    if cmd:
+        # print(f"[HTTP] SEND: {cmd}") # Можно закомментить для скорости
+        app_instance = App.get_running_app()
+        # Выполняем отправку в Bluetooth
+        Clock.schedule_once(lambda dt: app_instance.send_to_bt(cmd))
+    
+    # Для Beacon ответ не очень важен, но Flask требует вернуть хоть что-то
+    return jsonify({"status": "ok"}), 200
 
 def get_local_ip():
     """Получи локальный IP в сети"""
@@ -360,8 +366,9 @@ class TestApp(App):
             self.ostream = self.socket.getOutputStream()
             self.update_status_js("Подключено")
         except Exception as e:
-            self.update_status_js(f"Ошибка: {str(e)[:20]}")
             self.socket = None
+            self.ostream = None
+            self.update_status_js(f"Ошибка: {str(e)[:15]}")
 
     def disconnect_bt(self):
         try:
@@ -386,13 +393,16 @@ class TestApp(App):
         if webview_ref['view']:
             def run_js():
                 try:
-                    webview_ref['view'].evaluateJavascript(
-                        f"if(document.querySelector('.status')) document.querySelector('.status').textContent = '{text}';", 
-                        None
-                    )
-                except:
-                    pass
+                    # Вызываем JS функцию setStatus, которая и текст меняет, и кнопки
+                    script = f"if(typeof setStatus === 'function') setStatus('{text}');"
+                    webview_ref['view'].evaluateJavascript(script, None)
+                except Exception as e:
+                    print(f"JS Eval Error: {e}")
+            
+            # Всегда выполняем в UI потоке Android
             try:
+                from jnius import autoclass
+                PythonActivity = autoclass('org.kivy.android.PythonActivity')
                 PythonActivity.mActivity.runOnUiThread(run_js)
             except:
                 pass
