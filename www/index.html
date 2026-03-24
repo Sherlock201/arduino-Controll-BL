@@ -37,8 +37,9 @@
     }
     /* Левая колонка: джойстики и вертикальные кнопки между ними width:calc(var(--size) + 20px); */
     .col-left{display:flex;flex-direction:row;align-items:center;gap:5px;width: 100%;align-items: flex-end;justify-content: space-between;}
-
-    .joystick-wrap{display:inline-block;}
+	.col-left{height: 100%;bottom: max(clamp(12px, 2.5vmin, 24px), env(safe-area-inset-bottom));}
+    
+	.joystick-wrap{display:inline-block;position: fixed;}
     .joystick{
       width:var(--size);
       height:var(--size);
@@ -101,7 +102,9 @@
 
     /* Кнопки вертикально между джойстиками (они тоже слегка повёрнуты) */
     .buttons-vertical{position: relative;display:flex;justify-content: center; flex-direction:column;gap:12px;align-items:center;height: 100%;/*width: 100%;*/}
-    .btn{width: clamp(45px, 6vmin, 60px);height: clamp(45px, 6vmin, 60px); /*width:48px;height:48px;*/border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600; transition: all .13s ease;}
+	.buttons-vertical{justify-content: end;}
+	  
+	.btn{width: clamp(45px, 6vmin, 60px);height: clamp(45px, 6vmin, 60px); /*width:48px;height:48px;*/border-radius:10px;border:0;background:#ffffff;box-shadow:0 6px 14px rgba(10,20,40,0.06);display:flex;align-items:center;justify-content:center;font-weight:600; transition: all .13s ease;}
     .btn-block{display: flex;flex-direction: row;gap: 15px;}
     /* Правая колонка: повёрнутые надписи и значения */
     .col-right{display:flex;flex-direction:row;align-items:center;gap:20px;justify-content: center;}
