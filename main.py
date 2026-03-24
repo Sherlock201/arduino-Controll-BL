@@ -55,12 +55,10 @@ def send():
     cmd = request.args.get('cmd') or request.form.get('cmd')
     
     if cmd:
-        # print(f"[HTTP] SEND: {cmd}") # Можно закомментить для скорости
         app_instance = App.get_running_app()
-        # Выполняем отправку в Bluetooth
-        Clock.schedule_once(lambda dt: app_instance.(cmd))
+        # ВСТАВЬ СЮДА НАЗВАНИЕ МЕТОДА: send_to_bt
+        Clock.schedule_once(lambda dt: app_instance.send_to_bt(cmd))
     
-    # Для Beacon ответ не очень важен, но Flask требует вернуть хоть что-то
     return jsonify({"status": "ok"}), 200
 
 def get_local_ip():
