@@ -10,6 +10,7 @@ import os
 import netifaces
 import json
 from flask import Flask, jsonify, request
+from jnius import cast, declaration
 
 try:
     from jnius import autoclass, PythonJavaClass, java_method
@@ -381,13 +382,24 @@ class TestApp(App):
             pass
 
     def send_to_bt(self, data):
-        if self.ostream:
-            try:
-                self.ostream.write(data.encode())
-                self.ostream.flush()
-            except:
-                self.update_status_js("Связь потеряна")
-                self.socket = None
+    if self.ostream:
+        try:
+            # 1. Кодируем строку в байты Python
+            python_bytes = data.encode('utf-8')
+            
+            # 2. Преобразуем байты Python в Java-массив байтов (byte array)
+            # Это критически важно для корректной работы ostream.write()
+            java_byte_array = [b if b < 128 else b - 256 for b in python_bytes]
+            
+            # 3. Пишем в поток
+            self.ostream.write(java_byte_array)
+            self.ostream.flush()
+            print(f"[BT] Sent: {data.strip()}") # Для отладки в логах
+        except Exception as e:
+            print(f"[BT] Error: {e}")
+            self.update_status_js("Связь потеряна")
+            self.socket = None
+            self.ostream = None
 
     def update_status_js(self, text):
         if webview_ref['view']:
