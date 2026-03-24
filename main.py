@@ -56,7 +56,6 @@ def send():
     
     if cmd:
         app_instance = App.get_running_app()
-        # ВСТАВЬ СЮДА НАЗВАНИЕ МЕТОДА: send_to_bt
         Clock.schedule_once(lambda dt: app_instance.send_to_bt(cmd))
     
     return jsonify({"status": "ok"}), 200
@@ -351,6 +350,25 @@ class TestApp(App):
         self.update_status_js("Подключение...")
         threading.Thread(target=self._bt_thread, args=(address,), daemon=True).start()
 
+    def _monitor_connection(self):
+        """Фоновая проверка связи (чтение из сокета)"""
+        try:
+            istream = self.socket.getInputStream()
+            while self.socket and self.ostream:
+                # read() блокируется до прихода данных или ошибки
+                # Если робот выключится, read() выкинет Exception
+                res = istream.read()
+                if res == -1: # Конец потока
+                    break
+        except Exception as e:
+            print(f"[BT] Monitor: connection lost {e}")
+        
+        # Если вышли из цикла — значит связи нет
+        if self.socket: # Проверяем, не сами ли мы закрыли сокет
+            self.socket = None
+            self.ostream = None
+            self.update_status_js("Связь потеряна")
+            
     def _bt_thread(self, address):
         try:
             BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
@@ -364,6 +382,10 @@ class TestApp(App):
             self.socket.connect()
             self.ostream = self.socket.getOutputStream()
             self.update_status_js("Подключено")
+
+            # Запускаем поток мониторинга чтения
+            threading.Thread(target=self._monitor_connection, daemon=True).start()
+            
         except Exception as e:
             self.socket = None
             self.ostream = None
@@ -394,6 +416,9 @@ class TestApp(App):
                 self.update_status_js("Связь потеряна")
                 self.socket = None
                 self.ostream = None
+        else:
+            # Если JS шлет данные, а мы уже знаем, что связи нет
+            self.update_status_js("Отключено")
 
     def update_status_js(self, text):
         if webview_ref['view']:
