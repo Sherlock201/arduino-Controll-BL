@@ -268,8 +268,7 @@ const API_URL = "http://127.0.0.1:5000";
 
 console.log('API URL:', API_URL);
 
-let lastSendTime = 0;
-const throttleMs = 50;
+
 
 // Функция переключения состояний
 function updateUI(isConnected) {
@@ -322,12 +321,6 @@ window.onload = () => {
 };
 
 function sendLine(line) {
-    const now = Date.now();
-    // Если прошло меньше 50мс с последней отправки - выходим
-    if (now - lastSendTime < throttleMs) return; 
-
-    lastSendTime = now;
-
     // Используем Beacon API для мгновенной отправки
     // Формируем URL с параметром cmd
     const url = `${API_URL}/send?cmd=${encodeURIComponent(line)}`;
@@ -466,17 +459,16 @@ document.getElementById('btn6').onclick = () => {
         }
 
         function onPointerUp(e){
-          // Only release if this pointer was controlling this joystick
-          if(pointerId === null) return;
-          if(e.pointerId !== pointerId) return;
-          active = false;
-          pointerId = null;
-
-          container.classList.remove('active');
-
-          try{ knob.releasePointerCapture && knob.releasePointerCapture(e.pointerId); } catch(_){ }
-          resetKnob();
-        }
+    		if(pointerId === null || e.pointerId !== pointerId) return;
+    			active = false;
+    			pointerId = null;
+    			container.classList.remove('active');
+    			resetKnob();
+    			// ПРИНУДИТЕЛЬНЫЙ НОЛЬ
+    			const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
+   				sendLine(`${prefix}0\n`); 
+    			if(prefix === 'L') window.lastL = 0; else window.lastR = 0;
+		}
 
         // Touch fallback that also tracks touch identifier so multiple touches won't conflict
         function onTouchStart(e){
@@ -520,6 +512,10 @@ document.getElementById('btn6').onclick = () => {
               container.classList.remove('active');
 
               resetKnob();
+			  // ПРИНУДИТЕЛЬНЫЙ НОЛЬ
+    		  const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
+    		  sendLine(`${prefix}0\n`); 
+    		  if(prefix === 'L') window.lastL = 0; else window.lastR = 0;
               break;
             }
           }
