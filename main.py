@@ -382,13 +382,13 @@ class TestApp(App):
     def send_to_bt(self, data):
         if self.ostream:
             try:
-                # Преобразуем строку в список байтов (Java byte array)
-                # Pyjnius сам поймет, что list чисел — это массив байтов для Java
-                bytes_to_send = [ord(c) for c in data]
-
-                self.ostream.write(bytes_to_send)
+                # Превращаем строку в байтовый массив Python
+                # bytearray в pyjnius автоматически преобразуется в Java byte[]
+                b_data = bytearray(data, 'utf-8')
+            
+                self.ostream.write(b_data)
                 self.ostream.flush()
-                print(f"[BT] Sent: {data.strip()}")
+                print(f"[BT] Sent: {data.strip()}") 
             except Exception as e:
                 print(f"[BT] Error: {e}")
                 self.update_status_js("Связь потеряна")
