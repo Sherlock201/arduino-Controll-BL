@@ -16,6 +16,8 @@ try:
     from jnius import autoclass, PythonJavaClass, java_method
     from android.runnable import run_on_ui_thread
     from android.storage import app_storage_path 
+    from android.permissions import request_permissions, Permission
+    
     AndroidAvailable = True
 except Exception as e:
     AndroidAvailable = False
@@ -220,8 +222,17 @@ class TestApp(App):
 
     def on_start(self):
         print("[Kivy] on_start вызван")
+    
+        # 1. Запрашиваем разрешения у пользователя (для Android 12+)
+        if AndroidAvailable:
+            request_permissions([
+                Permission.BLUETOOTH_CONNECT,
+                Permission.BLUETOOTH_SCAN,
+                Permission.ACCESS_FINE_LOCATION
+            ])
+
+        # 2. Твоя существующая логика
         self.start_http_server()
-        
         Clock.schedule_once(self.setup_android, 1.0)
 
     def set_webview_visibility(self, visible):
