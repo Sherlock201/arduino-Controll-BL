@@ -181,6 +181,21 @@
     body.bg-a .j-4{
         border-top: 16px solid #e67208 !important;
     }
+
+	body.bg-b .j-6{
+      border-bottom: 16px solid #ffc48c !important;
+    }
+    body.bg-a .j-6{
+        border-bottom: 16px solid #e67208 !important;
+    }
+
+    body.bg-b .j-8{
+      border-top: 16px solid #ffc48c !important;
+    }
+    body.bg-a .j-8{
+        border-top: 16px solid #e67208 !important;
+    }
+	  
     body.bg-b .btn:active{
       background:#f1f1f1;
       transition: all .13s ease;
@@ -199,6 +214,75 @@
     .joystick-wrap, .control-left, .container {overflow: visible !important; /* Разрешаем теням выходить за границы */}
 
 
+	.control-left .joystick.C{
+      touch-action: none;
+      opacity: 0.5;
+    }
+
+    .control-right .joystick.A .add-controll{
+      visibility: hidden;
+    }
+
+
+    .control-right .joystick.B .add-controll{
+      visibility: visible;
+      display: block;
+      width: 100%;
+      height: 100%;
+      rotate: 90deg;
+    }
+    .control-right .joystick.B .j-2, .control-right .joystick.B .j-4{
+      visibility: hidden;
+    }
+
+    .control-right .joystick.C .add-controll{
+      visibility: visible;
+      display: block;
+      width: 100%;
+      height: 100%;
+      rotate: 90deg;
+    }
+
+    .control-right .joystick.D .add-controll{
+      visibility: visible;
+      display: block;
+      width: 100%;
+      height: 100%;
+      rotate: 90deg;
+    }
+
+    #btn1.active{
+      background-color: #e5ff71;
+    }
+    #btn2.active{
+      background-color: #ffdb71;
+    }
+    #btn3.active{
+      background-color: #ff9e71;
+    }
+    #btn4.active{
+      background-color: #71ffb3;
+    }
+    #btn5.active{
+      background-color: #71e3ff;
+    }
+    #btn9.active{
+      background-color: #a6ffed;
+    }
+    #btn9.visible{
+      visibility: visible;
+      touch-action: auto;
+    }
+    #btn9{
+      width: clamp(45px, 6vmin, 60px) !important;
+      height: clamp(45px, 6vmin, 60px) !important;
+      position: absolute;
+      right: clamp(12px, 2.5vmin, 24px);
+      top: clamp(12px, 2.5vmin, 24px);
+
+      visibility: hidden;
+      touch-action: none;
+    }
   </style>
 </head>
 <body class="bg-a">
@@ -208,12 +292,12 @@
 
     <div class="col-right">
       <div class="label">Левый</div>
-      <div class="value" id="value-top">Y: +0</div>
+      <div class="value" id="value-top">Y: 0</div>
 
       <div style="height:28px"></div>
 
       <div class="label">Правый</div>
-      <div class="value" id="value-bottom">Y: +0</div>
+      <div class="value" id="value-bottom">Y: 0</div>
     </div>
 
     <div class="col-left">
@@ -250,11 +334,17 @@
       </div>
 
         <div class="control-right">
+		  <div class="btn" id = "btn9">⋯</div>
           <div class="joystick-wrap">
             <div class="joystick" id="joystick-bottom" data-rot="0">
               <div class="base"></div>
               <div class="arrow up j-2" style="border-bottom: 16px solid #e67208;"></div>
               <div class="arrow down j-4" style="border-top: 16px solid #e67208;"></div>
+				<div class="add-controll">
+                	<div class="arrow up j-6" style="border-bottom: 16px solid #e67208;"></div>
+              		<div class="arrow down j-8" style="border-top: 16px solid #e67208;"></div>
+             	</div>
+				
               <div class="knob" id="knob-bottom" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
             </div>
           </div>
@@ -267,7 +357,132 @@
 const API_URL = "http://127.0.0.1:5000";
 
 console.log('API URL:', API_URL);
+window.currentMode = 'A';
 
+const joystickClR = document.querySelector(".control-right .joystick-wrap .joystick");
+const joystickClL = document.querySelector(".control-left .joystick-wrap .joystick");
+const btn1 = document.getElementById('btn1');
+const btn2 = document.getElementById('btn2');
+const btn3 = document.getElementById('btn3');
+const btn9 = document.getElementById('btn9');
+
+
+btn1.onclick = () => {
+    window.currentMode = 'A';
+    sendLine('A\n');
+    joystickClR.classList.remove('C');
+    joystickClR.classList.remove('B');
+    joystickClR.classList.remove('D');
+    joystickClR.classList.add('A');
+
+    joystickClL.classList.remove('C');
+    joystickClL.classList.remove('D');
+    joystickClL.classList.remove('B');
+    joystickClL.classList.add('A');
+
+    btn1.classList.add('active');
+    btn2.classList.remove('active');
+    btn3.classList.remove('active');
+    btn9.classList.remove('active');
+    btn9.classList.remove('visible');
+    resetAllJoysticks(); // Сброс в 0 при смене режима
+};
+
+btn2.onclick = () => {
+    window.currentMode = 'B';
+    sendLine('B\n');
+    joystickClR.classList.remove('A');
+    joystickClR.classList.remove('C');
+    joystickClR.classList.remove('D');
+    joystickClR.classList.add('B');
+    joystickClL.classList.remove('A');
+    joystickClL.classList.remove('C');
+    joystickClL.classList.remove('D');
+    joystickClL.classList.add('B');
+    btn9.classList.add('visible');
+
+    btn2.classList.add('active');
+    btn1.classList.remove('active');
+    btn3.classList.remove('active');
+    btn9.classList.remove('active');
+    resetAllJoysticks();
+};
+
+btn3.onclick = () => {
+    window.currentMode = 'C';
+    sendLine('C\n');
+    joystickClR.classList.remove('A');
+    joystickClR.classList.remove('B');
+    joystickClR.classList.remove('D');
+    joystickClR.classList.add('C');
+    joystickClL.classList.remove('A');
+    joystickClL.classList.remove('D');
+    joystickClL.classList.remove('B');
+    joystickClL.classList.add('C');
+    btn9.classList.remove('visible');
+
+    btn3.classList.add('active');
+    btn1.classList.remove('active');
+    btn2.classList.remove('active');
+    btn9.classList.remove('active');
+
+    resetAllJoysticks();
+};
+
+btn9.onclick = () => {
+    window.currentMode = 'D';
+    btn9.classList.toggle('active');
+    sendLine('D\n');
+
+    joystickClR.classList.remove('A');
+    joystickClR.classList.remove('C');
+    joystickClR.classList.remove('B');
+    joystickClR.classList.add('D');
+
+    joystickClL.classList.remove('A');
+    joystickClL.classList.remove('C');
+    joystickClL.classList.remove('B');
+    joystickClL.classList.add('D');
+
+    resetAllJoysticks();
+};
+
+function setJoystickLock(side, locked) {
+    // Находим нужный контейнер по ID
+    const id = (side === 'left' || side === 'top') ? 'joystick-top' : 'joystick-bottom';
+    const container = document.getElementById(id);
+    console.log(container);
+    if (container) {
+        if (locked) {
+            container.classList.add('locked');
+            // Принудительно сбрасываем в 0 при блокировке
+            container.dispatchEvent(new CustomEvent('reset')); 
+        } else {
+            container.classList.remove('locked');
+        }
+    }
+}
+
+function resetAllJoysticks() {
+    // Вызываем resetKnob для обоих джойстиков через их элементы
+    // или просто принудительно обнуляем UI
+    if (window.currentMode == 'A'){
+      document.getElementById('value-bottom').textContent = 'Y: 0';
+      setJoystickLock('left', false);
+    }
+    else if(window.currentMode == 'B'){
+      document.getElementById('value-bottom').textContent = 'X: 0';
+      setJoystickLock('left', false);
+    }
+    else if(window.currentMode == 'D'){
+      document.getElementById('value-bottom').textContent = 'X:0 Y:0';
+      setJoystickLock('left', false);
+    }
+    else if(window.currentMode == 'C'){
+      document.getElementById('value-bottom').textContent = 'X:0 Y:0';
+      setJoystickLock('left', true);
+    }
+}
 
 
 // Функция переключения состояний
@@ -290,7 +505,7 @@ function updateUI(isConnected) {
 }
 	  
 /*По умолчанию кнопки не доступны*/
-updateUI(false);
+updateUI(true); //Поменять на false
 	  
 
 
@@ -306,19 +521,6 @@ function setStatus(text) {
         updateUI(false);
     }
 }
-
-window.onload = () => {
-    console.log("Waiting for server...");
-    setTimeout(() => {
-		console.log("Send ping");	
-        fetch(`${API_URL}/ping`)
-    	.then(r => r.json())
-    	.then(d => console.log("OK:", d))
-    	.catch(e => console.log("Fetch failed, maybe server not ready:", e));
-
-	console.log('Send ping');	
-    }, 10000); // Даем серверу 5 секунд на прогрев
-};
 
 function sendLine(line) {
     // Используем Beacon API для мгновенной отправки
@@ -344,12 +546,6 @@ document.getElementById('btn6').onclick = () => {
         .catch(err => console.log(err));
 };
 
-
-	document.getElementById('btn1').onclick = () => sendLine('A\n');
-	document.getElementById('btn2').onclick = () => sendLine('B\n');
-	document.getElementById('btn3').onclick = () => sendLine('C\n');
-
-
     document.addEventListener('touchmove', function(e) {
       if (window.scrollY === 0 && e.touches[0].pageY > 0) {
         // Логика блокировки, если нужно ювелирное управление
@@ -360,14 +556,25 @@ document.getElementById('btn6').onclick = () => {
         document.getElementById('btn5').addEventListener('click', () => {
         body.classList.remove('bg-b');
         body.classList.add('bg-a');
+
+        btn5.classList.add('active');
+        btn4.classList.remove('active');
     });
 
     document.getElementById('btn4').addEventListener('click', () => {
         body.classList.remove('bg-a');
         body.classList.add('bg-b');
+
+        btn4.classList.add('active');
+        btn5.classList.remove('active');
     });
 
-    (function(){
+
+    //Стики
+     (function() {
+      // 1. ГЛОБАЛЬНЫЙ РЕЖИМ (если еще не объявлен выше)
+      if (typeof window.currentMode === 'undefined') window.currentMode = 'A';
+
       const joysticks = [
         { container: document.getElementById('joystick-top'), knob: document.getElementById('knob-top'), valueEl: document.getElementById('value-top') },
         { container: document.getElementById('joystick-bottom'), knob: document.getElementById('knob-bottom'), valueEl: document.getElementById('value-bottom') }
@@ -375,181 +582,122 @@ document.getElementById('btn6').onclick = () => {
 
       joysticks.forEach(setupJoystick);
 
-      function setupJoystick({container, knob, valueEl}){
-        const size = () => parseFloat(getComputedStyle(container).width);
-        const knobSize = () => parseFloat(getComputedStyle(knob).width);
+      function setupJoystick({ container, knob, valueEl }) {
+        if (!container || !knob) return;
 
-        function getParams(){
-          const s = size();
-          return { size: s, knobSize: knobSize(), radius: s/2, knobRadius: knobSize()/2, maxOffset: s/2 - knobSize()/2 };
-        }
-
-        const rotated = container.dataset.rot === '90';
         let active = false;
-        let pointerId = null; // track which pointer controls this joystick (for multi-touch)
-        let touchId = null; // for touch fallback when pointer events are not used
+        let pointerId = null;
+        let touchId = null;
 
-        function setKnobOffset(localDy, withTransition=false){
-  			const {maxOffset} = getParams();
- 			const constrained = Math.max(-maxOffset, Math.min(maxOffset, localDy));
-  
-  			knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
-  			knob.style.transform = `translate(-50%,-50%) translateY(${constrained}px)`;
-  
-		 	const normalized = Math.round((-constrained / maxOffset) * 100);
-  			const shown = (normalized > 0) ? `+${normalized}` : `${normalized}`;
-  			valueEl.textContent = `Y: ${shown}`;
-  			knob.setAttribute('aria-valuenow', normalized);
+        const getParams = () => {
+          const s = parseFloat(getComputedStyle(container).width);
+          const ks = parseFloat(getComputedStyle(knob).width);
+          return { maxOffset: s / 2 - ks / 2 };
+        };
 
+        const updateJoystick = (dx, dy, withTransition = false) => {
+          // ПРОВЕРКА БЛОКИРОВКИ: если есть класс locked, выходим из функции
+          if (container.classList.contains('locked')) return;
+          const { maxOffset } = getParams();
+          const isRight = (container.id === 'joystick-bottom');
+          let finalX = 0, finalY = 0;
 
-  			// Определяем какой это джойстик (левый или правый)
-  			const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
-  
-  			// Вызываем функцию отправки через fetch (которую мы переписали под Flask)
-  			// Мы добавили проверку, чтобы не слать то же самое число дважды
-  			if (prefix === 'L') {
-      			if (window.lastL !== normalized) {
-          			sendLine(`L${normalized}\n`);
-          			window.lastL = normalized;
-      			}
-  			} else {
-      			if (window.lastR !== normalized) {
-          			sendLine(`R${normalized}\n`);
-          			window.lastR = normalized;
-      			}
-  			}
-		}
-
-        function resetKnob(){ setKnobOffset(0, true); }
-
-        function onPointerDown(e){
-          if(e.pointerType === 'mouse' && e.button !== 0) return;
-          // If another pointer already controls this joystick, ignore
-          if(pointerId !== null) return;
-          active = true;
-          pointerId = e.pointerId;
-
-          container.classList.add('active');
-
-          try{ knob.setPointerCapture(e.pointerId); }catch(_){ }
-          knob.style.transition = 'none';
-          handlePointerMove(e);
-        }
-
-        function handlePointerMove(e){
-          // Only respond to moves from the pointer that started on this knob
-          if(!active) return;
-          if(e.pointerId !== undefined && e.pointerId !== pointerId) return;
-          e.preventDefault();
-          const rect = container.getBoundingClientRect();
-          const centerX = rect.left + rect.width/2;
-          const centerY = rect.top + rect.height/2;
-          const clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
-          const clientY = (e.clientY !== undefined) ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY) || 0;
-
-          let localDy;
-          if(rotated){
-            const dx = clientX - centerX;
-            localDy = -dx; // повёрнутое управление: движение по X управляет локальной Y
-          } else {
-            localDy = clientY - centerY;
-          }
-
-          setKnobOffset(localDy, false);
-        }
-
-        function onPointerUp(e){
-    		if(pointerId === null || e.pointerId !== pointerId) return;
-    			active = false;
-    			pointerId = null;
-    			container.classList.remove('active');
-    			resetKnob();
-    			// ПРИНУДИТЕЛЬНЫЙ НОЛЬ
-    			const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
-   				sendLine(`${prefix}0\n`); 
-    			if(prefix === 'L') window.lastL = 0; else window.lastR = 0;
-		}
-
-        // Touch fallback that also tracks touch identifier so multiple touches won't conflict
-        function onTouchStart(e){
-          if(touchId !== null) return; // already tracking a touch
-          const t = e.changedTouches[0];
-          if(!t) return;
-          touchId = t.identifier;
-          active = true;
-
-          container.classList.add('active');
-
-          knob.style.transition = 'none';
-          handleTouchMove(e);
-        }
-
-        function handleTouchMove(e){
-          if(!active || touchId === null) return;
-          // find the touch with our id
-          let t = null;
-          for(let i=0;i<e.touches.length;i++){ if(e.touches[i].identifier === touchId){ t = e.touches[i]; break; } }
-          if(!t) return;
-          e.preventDefault();
-          const rect = container.getBoundingClientRect();
-          const centerX = rect.left + rect.width/2;
-          const clientX = t.clientX;
-          const clientY = t.clientY;
-          let localDy;
-          if(rotated){ localDy = -(clientX - (rect.left + rect.width/2)); }
-          else { localDy = clientY - (rect.top + rect.height/2); }
-          setKnobOffset(localDy, false);
-        }
-
-        function onTouchEnd(e){
-          if(touchId === null) return;
-          // if our touch ended, stop tracking
-          for(let i=0;i<e.changedTouches.length;i++){
-            if(e.changedTouches[i].identifier === touchId){
-              active = false;
-              touchId = null;
-
-              container.classList.remove('active');
-
-              resetKnob();
-			  // ПРИНУДИТЕЛЬНЫЙ НОЛЬ
-    		  const prefix = (container.id === 'joystick-top') ? 'L' : 'R';
-    		  sendLine(`${prefix}0\n`); 
-    		  if(prefix === 'L') window.lastL = 0; else window.lastR = 0;
-              break;
+          // ЛОГИКА РЕЖИМОВ
+          if (isRight && (window.currentMode === 'D' || window.currentMode === 'C')) {
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const limit = Math.min(dist, maxOffset);
+            if (dist > 0) {
+              finalX = dx * (limit / dist);
+              finalY = dy * (limit / dist);
             }
+          } else if (isRight && window.currentMode === 'B') {
+            finalX = Math.max(-maxOffset, Math.min(maxOffset, dx));
+          } else {
+            finalY = Math.max(-maxOffset, Math.min(maxOffset, dy));
           }
-        }
 
-        function onKey(e){
-          const step = 8;
-          const style = getComputedStyle(knob).transform;
-          let cur = 0;
-          try{ const dm = new DOMMatrixReadOnly(style); cur = dm.m42 || 0; }catch(_){ cur = 0; }
-          if(e.key === 'ArrowUp'){ setKnobOffset(cur - step, false); e.preventDefault(); }
-          else if(e.key === 'ArrowDown'){ setKnobOffset(cur + step, false); e.preventDefault(); }
-          else if(e.key === 'Home'){ resetKnob(); }
-        }
+          // ВИЗУАЛ
+          knob.style.transition = withTransition ? 'transform .14s ease' : 'none';
+          knob.style.transform = `translate(calc(-50% + ${finalX}px), calc(-50% + ${finalY}px))`;
 
-        // Attach pointer listeners specific to this joystick
-        knob.addEventListener('pointerdown', onPointerDown);
-        document.addEventListener('pointermove', handlePointerMove, {passive:false});
-        document.addEventListener('pointerup', onPointerUp);
-        document.addEventListener('pointercancel', onPointerUp);
+          // ДАННЫЕ
+          const nx = Math.round((finalX / maxOffset) * 100);
+          const ny = Math.round((-finalY / maxOffset) * 100);
+          const prefix = isRight ? 'R' : 'L';
 
-        // Touch listeners
-        knob.addEventListener('touchstart', onTouchStart, {passive:false});
-        document.addEventListener('touchmove', handleTouchMove, {passive:false});
-        document.addEventListener('touchend', onTouchEnd);
-        document.addEventListener('touchcancel', onTouchEnd);
+          if (isRight && (window.currentMode === 'D' || window.currentMode === 'C')) {
+            if (window.lastR !== `${nx},${ny}`) {
+              sendLine(`RX${nx}RY${ny}\n`);
+              window.lastR = `${nx},${ny}`;
+              if (valueEl) valueEl.textContent = `X:${nx} Y:${ny}`;
+            }
+          } else {
+            const val = (isRight && window.currentMode === 'B') ? nx : ny;
+            const label = (isRight && window.currentMode === 'B') ? 'X' : 'Y';
+            if (prefix === 'R') {
+              if (window.lastR !== val) { sendLine(`R${val}\n`); window.lastR = val; }
+            } else {
+              if (window.lastL !== val) { sendLine(`L${val}\n`); window.lastL = val; }
+            }
+            if (valueEl) valueEl.textContent = `${label}: ${val > 0 ? '+' : ''}${val}`;
+          }
+        };
 
-        knob.addEventListener('keydown', onKey);
+        const resetKnob = () => updateJoystick(0, 0, true);
+
+        // ПОИНТЕРЫ (МЫШЬ)
+        knob.addEventListener('pointerdown', (e) => {
+          if (e.pointerType === 'mouse' && e.button !== 0) return;
+          active = true; pointerId = e.pointerId;
+          container.classList.add('active');
+          knob.setPointerCapture(e.pointerId);
+        });
+
+        document.addEventListener('pointermove', (e) => {
+          if (!active || e.pointerId !== pointerId) return;
+          const rect = container.getBoundingClientRect();
+          updateJoystick(e.clientX - (rect.left + rect.width / 2), e.clientY - (rect.top + rect.height / 2));
+        });
+
+        document.addEventListener('pointerup', (e) => {
+          if (e.pointerId !== pointerId) return;
+          active = false; pointerId = null;
+          container.classList.remove('active');
+          resetKnob();
+          sendLine((container.id === 'joystick-bottom' && (window.currentMode === 'D' || window.currentMode === 'C')) ? "RX0RY0\n" : `${container.id === 'joystick-top' ? 'L' : 'R'}0\n`);
+        });
+
+        // ТАЧ (СЕНСОР)
+        knob.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          if (touchId !== null) return;
+          const t = e.changedTouches[0];
+          touchId = t.identifier; active = true;
+          container.classList.add('active');
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+          if (!active || touchId === null) return;
+          const t = Array.from(e.touches).find(touch => touch.identifier === touchId);
+          if (!t) return;
+          e.preventDefault();
+          const rect = container.getBoundingClientRect();
+          updateJoystick(t.clientX - (rect.left + rect.width / 2), t.clientY - (rect.top + rect.height / 2));
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+          const t = Array.from(e.changedTouches).find(touch => touch.identifier === touchId);
+          if (!t) return;
+          active = false; touchId = null;
+          container.classList.remove('active');
+          resetKnob();
+          sendLine((container.id === 'joystick-bottom' && (window.currentMode === 'D' || window.currentMode === 'C')) ? "RX0RY0\n" : `${container.id === 'joystick-top' ? 'L' : 'R'}0\n`);
+        });
 
         resetKnob();
-        window.addEventListener('resize', ()=>{ resetKnob(); });
       }
-
     })();
+    
   </script>
 </body>
 </html>
