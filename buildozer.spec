@@ -1,11 +1,17 @@
 [app]
 
-title = BTTest
-package.name = bttest
-package.domain = org.example
+title = FTBL
+package.name = ftbl
+package.domain = org.sherlock201
 
 source.dir = .
 source.include_exts = py,kv,html,css,js,png,jpg
+
+# Иконка
+icon.filename = %(source.dir)s/Controller.png
+
+# Заставка
+presplash.filename = %(source.dir)s/ControllerSpl.png
 
 version = 0.1
 requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3,netifaces
