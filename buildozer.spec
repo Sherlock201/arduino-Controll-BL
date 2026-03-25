@@ -16,7 +16,7 @@ presplash.filename = %(source.dir)s/ControllerSpl.png
 version = 0.1
 requirements = python3,kivy,pyjnius,flask==2.2.5,werkzeug==2.2.3,netifaces
 
-android.api = 31
+android.api = 35
 android.minapi = 21
 android.ndk = 25b
 android.accept_sdk_license = True
