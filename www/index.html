@@ -432,7 +432,7 @@ btn3.onclick = () => {
 btn9.onclick = () => {
     window.currentMode = 'D';
     btn9.classList.toggle('active');
-    sendLine('D\n');
+    /*sendLine('D\n');*/
 
     joystickClR.classList.remove('A');
     joystickClR.classList.remove('C');
@@ -444,6 +444,21 @@ btn9.onclick = () => {
     joystickClL.classList.remove('B');
     joystickClL.classList.add('D');
 
+    if(btn9.classList.contains('active') == true){
+      joystickClL.classList.add('D');
+      joystickClR.classList.add('D');
+
+      joystickClL.classList.remove('B');
+      joystickClR.classList.remove('B');
+    }
+    else{
+      joystickClL.classList.add('B');
+      joystickClR.classList.add('B');
+
+      joystickClL.classList.remove('D');
+      joystickClR.classList.remove('D');
+    }
+
     resetAllJoysticks();
 };
 
@@ -451,7 +466,6 @@ function setJoystickLock(side, locked) {
     // Находим нужный контейнер по ID
     const id = (side === 'left' || side === 'top') ? 'joystick-top' : 'joystick-bottom';
     const container = document.getElementById(id);
-    console.log(container);
     if (container) {
         if (locked) {
             container.classList.add('locked');
