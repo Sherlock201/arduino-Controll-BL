@@ -295,7 +295,26 @@ class TestApp(App):
             Clock.schedule_once(self.check_webview_loaded, 1.0)
 
     # --- Bluetooth методы ---
-    
+    def show_error_popup(self, title, message):
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
+        layout.add_widget(Label(text=message, halign='center'))
+        
+        close_btn = Button(text="OK", size_hint=(1, 0.4))
+        layout.add_widget(close_btn)
+        
+        error_popup = Popup(
+            title=title, 
+            content=layout, 
+            size_hint=(0.8, 0.4),
+            auto_dismiss=False # Чтобы не закрыли случайно тапнув мимо
+        )
+        
+        # При закрытии этого окна возвращаем WebView
+        close_btn.bind(on_release=error_popup.dismiss)
+        error_popup.bind(on_dismiss=self.restore_webview)
+        
+        error_popup.open()
+        
     def show_device_selector(self):
         if not AndroidAvailable: 
             return
@@ -310,7 +329,16 @@ class TestApp(App):
         
             BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
             adapter = BluetoothAdapter.getDefaultAdapter()
-        
+
+            # ПРОВЕРКА: Если Bluetooth выключен
+            if adapter is None or not adapter.isEnabled():
+                # 1. Отправляем текст в JS (если нужно)
+                self.update_status_js("Включите Bluetooth!")
+                # 2. Показываем Kivy-уведомление (Popup), чтобы пользователь понял причину
+                self.show_error_popup("Ошибка", "Пожалуйста, включите Bluetooth в настройках телефона.")
+                # 3. WebView восстановится автоматически при закрытии этого попапа (см. ниже)
+                return
+                
             if not adapter.isEnabled():
                 self.update_status_js("Включите Bluetooth!")
                 return
