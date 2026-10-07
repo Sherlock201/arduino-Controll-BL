@@ -3,14 +3,15 @@ from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 
 import threading
 import os
+import time
 import netifaces
 import json
 from flask import Flask, jsonify, request
-from jnius import autoclass
 
 try:
     from jnius import autoclass, PythonJavaClass, java_method
@@ -22,6 +23,40 @@ try:
 except Exception as e:
     AndroidAvailable = False
     print("pyjnius not available:", e)
+
+# -------------------- BLE Listener (Pyjnius Interface) --------------------
+
+if AndroidAvailable:
+    class BleListenerImpl(PythonJavaClass):
+        __javainterfaces__ = ['org/sherlock201/spble/MyGattCallback$BleListener']
+        __javacontext__ = 'app'
+
+        def __init__(self, app_instance):
+            super().__init__()
+            self.app = app_instance
+
+        @java_method('()V')
+        def onConnected(self):
+            print("[BLE] Connected to GATT server, waiting for services...")
+
+        @java_method('()V')
+        def onDisconnected(self):
+            print("[BLE] Disconnected from GATT server")
+            self.app.handle_ble_disconnect()
+
+        @java_method('(Landroid/bluetooth/BluetoothGatt;I)V')
+        def onServicesDiscovered(self, gatt, status):
+            if status == 0:  # GATT_SUCCESS = 0
+                print("[BLE] Services discovered successfully")
+                self.app.handle_ble_services_discovered(gatt)
+            else:
+                print(f"[BLE] Service discovery failed with status: {status}")
+                self.app.handle_ble_error(f"GATT discovery error: {status}")
+
+        @java_method('(Ljava/lang/String;)V')
+        def onError(self, message):
+            print(f"[BLE] Error: {message}")
+            self.app.handle_ble_error(message)
 
 # -------------------- Flask Server (только для API) --------------------
 
@@ -210,6 +245,28 @@ class TestApp(App):
         self.fs = None
         self.socket = None
         self.ostream = None
+
+        # Переменные управления подключением
+        self.conn_mode = None  # 'classic' или 'ble'
+        self.gatt = None
+        self.ble_char = None
+        self.ble_event = None
+        self.ble_error_msg = ""
+        self._internal_disconnect = False
+
+        # --- Предварительная загрузка JNI ---
+        if AndroidAvailable:
+            try:
+                self.ble_listener = BleListenerImpl(self)
+                self.MyGattCallbackClass = autoclass('org.sherlock201.spble.MyGattCallback')
+            except Exception as e:
+                print(f"[Init] BLE JNI Error: {e}")
+                self.ble_listener = None
+                self.MyGattCallbackClass = None
+        else:
+            self.ble_listener = None
+            self.MyGattCallbackClass = None
+        # -------------------------------------------------
         
         self.root_box = BoxLayout(orientation='vertical')
         self.status_label = Button(
@@ -228,7 +285,8 @@ class TestApp(App):
             request_permissions([
                 Permission.BLUETOOTH_CONNECT,
                 Permission.BLUETOOTH_SCAN,
-                Permission.ACCESS_FINE_LOCATION
+                Permission.ACCESS_FINE_LOCATION,
+                Permission.ACCESS_COARSE_LOCATION
             ])
 
         # 2. Твоя существующая логика
@@ -349,10 +407,6 @@ class TestApp(App):
                 self.show_error_popup("Ошибка", "Пожалуйста, включите Bluetooth в настройках телефона.")
                 # 3. WebView восстановится автоматически при закрытии этого попапа (см. ниже)
                 return
-                
-            if not adapter.isEnabled():
-                self.update_status_js("Включите Bluetooth!")
-                return
 
             paired_devices = adapter.getBondedDevices().toArray()
             device_dict = {}
@@ -387,74 +441,295 @@ class TestApp(App):
         if hasattr(self, 'popup'):
             self.popup.dismiss()
         self.update_status_js("Подключение...")
+
+        # Сбрасываем старые подключения
+        self.disconnect_bt()
+
+        # Пауза, чтобы старый GATT успел освободиться, а callback отработал
+        time.sleep(0.5)
+
         threading.Thread(target=self._bt_thread, args=(address,), daemon=True).start()
 
     def _monitor_connection(self):
-        """Фоновая проверка связи (чтение из сокета)"""
+        """Фоновая проверка связи (чтение из сокета) для Classic Bluetooth"""
         try:
             istream = self.socket.getInputStream()
-            while self.socket and self.ostream:
+            while self.socket and self.ostream and self.conn_mode == 'classic':
                 # read() блокируется до прихода данных или ошибки
-                # Если робот выключится, read() выкинет Exception
                 res = istream.read()
                 if res == -1: # Конец потока
                     break
         except Exception as e:
-            print(f"[BT] Monitor: connection lost {e}")
+            print(f"[BT] Monitor Classic lost connection: {e}")
         
-        # Если вышли из цикла — значит связи нет
-        if self.socket: # Проверяем, не сами ли мы закрыли сокет
+        if self.conn_mode == 'classic':
+            self.conn_mode = None
             self.socket = None
             self.ostream = None
             self.update_status_js("Связь потеряна")
-            
-    def _bt_thread(self, address):
-        try:
-            BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
-            UUID = autoclass('java.util.UUID')
-            adapter = BluetoothAdapter.getDefaultAdapter()
-            device = adapter.getRemoteDevice(address)
-            
-            uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-            
-            self.socket = device.createRfcommSocketToServiceRecord(uuid)
-            self.socket.connect()
-            self.ostream = self.socket.getOutputStream()
-            self.update_status_js("Подключено")
 
-            # Запускаем поток мониторинга чтения
-            threading.Thread(target=self._monitor_connection, daemon=True).start()
-            
+    # --- Помощники BLE Callback ---
+    def handle_ble_services_discovered(self, gatt):
+        """Автоматический поиск характеристики с поддержкой записи"""
+        found_char = None
+        services = gatt.getServices().toArray()
+        
+        for service in services:
+            characteristics = service.getCharacteristics().toArray()
+            for char in characteristics:
+                props = char.getProperties()
+                # 8 = WRITE, 4 = WRITE_NO_RESPONSE
+                if (props & 8) or (props & 4):
+                    found_char = char
+                    break
+            if found_char:
+                break
+                
+        if found_char:
+            self.ble_char = found_char
+            if self.ble_event:
+                self.ble_event.set()
+        else:
+            self.handle_ble_error("No write characteristic found")
+
+        self.gatt = gatt
+        
+        # Обновляем WebView - кнопки станут активными!
+        self.update_status_js("Подключено")
+        print("[BLE] Services ready, UI updated to 'Подключено'")
+
+    def handle_ble_disconnect(self):
+        """Освобождение ресурсов BLE только после подтверждения разрыва от Android"""
+        print("[BLE] handle_ble_disconnect called")
+
+        # Если это внутренний disconnect от _try_ble_connect — не трогаем self.gatt,
+        # он уже сброшен и закрыт вручную
+        if self._internal_disconnect:
+            print("[BLE] Internal disconnect - skipping cleanup")
+            return
+
+        if self.gatt:
+            try:
+                self.gatt.close()
+                print("[BLE] GATT client successfully closed.")
+            except Exception as e:
+                print(f"[BLE] Error closing GATT: {e}")
+            self.gatt = None
+
+        self.conn_mode = None
+        self.ble_char = None
+        self.update_status_js("Отключено")
+
+        # Разблокируем поток, если он завис в ожидании подключения
+        if self.ble_event:
+            self.ble_event.set()
+
+    def handle_ble_error(self, message):
+        self.ble_error_msg = message
+        if self.ble_event:
+            self.ble_event.set()
+        self.update_status_js(f"Ошибка: {str(message)[:15]}")
+
+    # --- Один цикл BLE-подключения ---
+    def _try_ble_connect(self, device):
+        """Один цикл BLE-подключения. True при успехе.
+           При провале сам закрывает GATT и возвращает False.
+           При успехе self.gatt остаётся живым, self.ble_char заполнен."""
+        self.ble_event = threading.Event()
+        self.ble_error_msg = ""
+        self.ble_char = None
+
+        try:
+            activity = PythonActivity.mActivity
+
+            if not self.MyGattCallbackClass or not self.ble_listener:
+                raise Exception("BLE classes not initialized on main thread")
+
+            callback_instance = self.MyGattCallbackClass(self.ble_listener)
+
+            try:
+                self.gatt = device.connectGatt(activity, False, callback_instance, 2)
+            except:
+                self.gatt = device.connectGatt(activity, False, callback_instance)
+
+            if not self.gatt:
+                raise Exception("Failed to invoke connectGatt")
+
+            success = self.ble_event.wait(timeout=4.0)
+
+            if success and self.ble_char:
+                return True
+
+            print(f"[BT] BLE cycle failed: {self.ble_error_msg or 'timeout'}")
         except Exception as e:
-            self.socket = None
-            self.ostream = None
-            self.update_status_js(f"Ошибка: {str(e)[:15]}")
+            print(f"[BT] BLE cycle error: {e}")
+
+        # --- Провал: рвём и чистим ---
+        if self.gatt:
+            gatt_to_kill = self.gatt
+            self.gatt = None
+            self.conn_mode = None
+            self._internal_disconnect = True
+            try:
+                gatt_to_kill.disconnect()
+            except:
+                pass
+            time.sleep(0.3)
+            try:
+                gatt_to_kill.close()
+            except:
+                pass
+            self.ble_char = None
+            self._internal_disconnect = False
+            time.sleep(0.5)
+
+        return False
+
+    # --- Главная каскадная логика (BLE retry -> Classic -> Error) ---
+    def _bt_thread(self, address):
+        BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+        UUID = autoclass('java.util.UUID')
+        adapter = BluetoothAdapter.getDefaultAdapter()
+        device = adapter.getRemoteDevice(address)
+
+        # --- Определение типа устройства ---
+        try:
+            dev_type = device.getType()
+            # 0=UNKNOWN, 1=CLASSIC, 2=LE, 3=DUAL
+            print(f"[BT] device.getType() = {dev_type}")
+        except Exception as e:
+            dev_type = 0
+            print(f"[BT] getType() failed: {e}")
+
+        want_ble_first = (dev_type != 1)  # всё кроме чистого CLASSIC
+        want_classic    = (dev_type != 2)  # всё кроме чистого LE
+
+        # --------------------------------------------------------
+        # ШАГ 1: BLE (GATT) с ретраями (до 3 полных циклов)
+        # --------------------------------------------------------
+        if want_ble_first:
+            max_cycles = 3
+            for cycle in range(1, max_cycles + 1):
+                print(f"[BT] BLE cycle #{cycle}/{max_cycles}")
+                self.update_status_js(f"Подключение: BLE ({cycle}/{max_cycles})...")
+
+                if self._try_ble_connect(device):
+                    self.conn_mode = 'ble'
+                    self.update_status_js("Подключено (BLE)")
+                    print(f"[BT] Connected via BLE on cycle #{cycle}!")
+                    return
+
+                time.sleep(1.0)
+
+            if not want_classic:
+                print("[BT] Device is LE-only, all BLE cycles failed.")
+                self.conn_mode = None
+                self.update_status_js("Ошибка подключения")
+                Clock.schedule_once(lambda dt: self.show_error_popup(
+                    "Ошибка подключения",
+                    "BLE-устройство не ответило после 3 попыток."
+                ))
+                return
+
+            # Даём адаптеру передохнуть перед Classic
+            print("[BT] Ждём 2 секунды перед Classic...")
+            time.sleep(2.0)
+
+        # --------------------------------------------------------
+        # ШАГ 2: Classic (RFCOMM)
+        # --------------------------------------------------------
+        if want_classic:
+            print("[BT] Step 2: Trying Classic Bluetooth...")
+            self.update_status_js("Подключение: Classic...")
+            try:
+                uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                self.socket = device.createRfcommSocketToServiceRecord(uuid)
+                self.socket.connect()
+                self.ostream = self.socket.getOutputStream()
+
+                self.conn_mode = 'classic'
+                self.update_status_js("Подключено (Classic)")
+                print("[BT] Connected via Classic Bluetooth!")
+
+                # Запускаем поток мониторинга чтения
+                threading.Thread(target=self._monitor_connection, daemon=True).start()
+                return
+            except Exception as e_classic:
+                print(f"[BT] Classic Bluetooth failed: {e_classic}")
+                if self.socket:
+                    try:
+                        self.socket.close()
+                    except:
+                        pass
+                self.socket = None
+                self.ostream = None
+                try:
+                    adapter.cancelDiscovery()
+                except:
+                    pass
+
+        # --------------------------------------------------------
+        # ШАГ 3: Оба не удались
+        # --------------------------------------------------------
+        print("[BT] All connection attempts failed.")
+        self.conn_mode = None
+        self.update_status_js("Ошибка подключения")
+        Clock.schedule_once(
+            lambda dt: self.show_error_popup(
+                "Ошибка подключения",
+                "Не удалось подключиться ни по BLE, ни по Classic."
+            )
+        )
 
     def disconnect_bt(self):
         try:
+            # Принудительно закрываем сокет (прерывает зависание connect)
             if self.socket:
                 self.socket.close()
             self.socket = None
             self.ostream = None
-            self.update_status_js("Отключено")
-        except:
-            pass
+
+            # Отключаем GATT. close() НЕ вызываем — он придёт в callback
+            # handle_ble_disconnect() и там корректно закроет клиент.
+            if self.gatt:
+                try:
+                    self.gatt.disconnect()
+                except:
+                    pass
+        except Exception as e:
+            print(f"[BT] Disconnect error: {e}")
+
+        self.conn_mode = None
+        self.ble_char = None
+        self.update_status_js("Отключено")
 
     def send_to_bt(self, data):
-        if self.ostream:
+        if self.conn_mode == 'classic' and self.ostream:
             try:
                 # Превращаем строку в байтовый массив Python
                 # bytearray в pyjnius автоматически преобразуется в Java byte[]
                 b_data = bytearray(data, 'utf-8')
-            
                 self.ostream.write(b_data)
                 self.ostream.flush()
-                print(f"[BT] Sent: {data.strip()}") 
+                print(f"[BT Classic] Sent: {data.strip()}")
             except Exception as e:
-                print(f"[BT] Error: {e}")
+                print(f"[BT Classic] Send Error: {e}")
                 self.update_status_js("Связь потеряна")
                 self.socket = None
                 self.ostream = None
+                self.conn_mode = None
+
+        elif self.conn_mode == 'ble' and self.gatt and self.ble_char:
+            try:
+                b_data = bytearray(data, 'utf-8')
+                self.ble_char.setValue(b_data)
+                self.gatt.writeCharacteristic(self.ble_char)
+                print(f"[BT BLE] Sent: {data.strip()}")
+            except Exception as e:
+                print(f"[BT BLE] Send Error: {e}")
+                self.update_status_js("Связь потеряна")
+                self.disconnect_bt()
+
         else:
             # Если JS шлет данные, а мы уже знаем, что связи нет
             self.update_status_js("Отключено")
