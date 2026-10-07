@@ -1,7 +1,7 @@
 [app]
 
-title = FTBL
-package.name = ftbl
+title = FTBLE
+package.name = ftble
 package.domain = org.sherlock201
 
 source.dir = .
@@ -27,6 +27,7 @@ android.permissions = INTERNET,ACCESS_NETWORK_STATE,BLUETOOTH,BLUETOOTH_ADMIN,AC
 
 # Просто добавляем атрибут в манифест
 android.manifest_application_attributes = android:usesCleartextTraffic="true"
+android.add_src = java
 
 android.orientation = landscape
 log_level = 2
